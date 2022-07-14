@@ -21,7 +21,7 @@ public class Main {
             System.exit(2);
         }
         FileInputStream in = new FileInputStream(tokenFile);
-        String raw = new String(in.readAllBytes());
+        String raw = new String(in.readAllBytes()).replace("\n", "");
         int appId =  Integer.parseInt(raw.split(":")[0]);
         String apiHash = raw.split(":")[1];
         APIToken token = new APIToken(appId, apiHash);

@@ -1,5 +1,6 @@
 package org.nwolfhub;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import com.ibm.icu.text.Transliterator;
 import it.tdlight.client.Result;
@@ -180,9 +181,11 @@ public class UpdateHandler {
 
     private static String continueText(String text) throws IOException {
         OkHttpClient okClient = new OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).writeTimeout(20, TimeUnit.SECONDS).build();
-        Response response = okClient.newCall(new Request.Builder().url("https://pelevin.gpt.dobro.ai/generate/").post(RequestBody.create(("{\"prompt\": \"" + text + "\", \"length\": 30}").getBytes(StandardCharsets.UTF_8))).build()).execute();
+        Random r = new Random();
+        Response response = okClient.newCall(new Request.Builder().url("https://pelevin.gpt.dobro.ai/generate/").post(RequestBody.create(("{\"prompt\": \"" + text.replace("\n", "%0A") + "\", \"length\": " + (r.nextInt(65) + 15) + "}").getBytes(StandardCharsets.UTF_8))).build()).execute();
         if(response.isSuccessful()) {
-            return JsonParser.parseString(response.body().string()).getAsJsonObject().get("replies").getAsJsonArray().get(0).getAsString();
+            JsonArray responses = JsonParser.parseString(response.body().string()).getAsJsonObject().get("replies").getAsJsonArray();
+            return responses.get(r.nextInt(responses.size())).getAsString();
         } else {
             throw new IOException(response.message());
         }

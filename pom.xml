@@ -67,19 +67,26 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
+                <artifactId>maven-assembly-plugin</artifactId>
                 <executions>
                     <execution>
+                        <phase>package</phase>
                         <goals>
-                            <goal>repackage</goal>
+                            <goal>single</goal>
                         </goals>
-                        <configuration>
-                            <classifier>spring</classifier>
-                            <mainClass>org.nwolfhub.Main</mainClass>
-                        </configuration>
                     </execution>
                 </executions>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addClasspath>true</addClasspath>
+                            <mainClass>org.nwolfhub.Main</mainClass>
+                        </manifest>
+                    </archive>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
             </plugin>
         </plugins>
     </build>

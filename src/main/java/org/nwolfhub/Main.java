@@ -12,8 +12,13 @@ import java.util.Scanner;
 
 public class Main {
     public static SimpleTelegramClient client;
-    public static void main(String[] args) throws CantLoadLibrary, IOException {
-        Init.start();
+    public static void main(String[] args) throws IOException {
+        try {
+            Init.start();
+        } catch (CantLoadLibrary e) {
+            System.out.println("Can't load library. Are all dependencies installed?");
+            e.printStackTrace();
+        }
         File tokenFile = new File("token");
         if(!tokenFile.exists()) {
             tokenFile.createNewFile();

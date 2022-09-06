@@ -74,7 +74,7 @@ public class MessageAnimationHandler {
         if(split[0].equals("e")) {
             return split[1];
         } else if(split[0].equals("a") || split[1].equals("s")) {
-            return action.split("LTE:")[1];
+            return split[2];
         }
         return null;
     }

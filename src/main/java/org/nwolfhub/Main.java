@@ -42,6 +42,8 @@ public class Main {
         }
         client = new SimpleTelegramClient(settings);
         client.start(AuthenticationData.consoleLogin());
+        File documentsDir = new File("session/documents");
+        if(!documentsDir.isDirectory()) documentsDir.mkdir();
         UpdateHandler.initialize(client);
         client.addUpdateHandler(TdApi.UpdateNewMessage.class, UpdateHandler::processUpdate);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {

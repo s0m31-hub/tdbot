@@ -29,7 +29,12 @@ public class Main {
         Path session = Path.of("session");
         settings.setDatabaseDirectoryPath(session);
         settings.setDownloadedFilesDirectoryPath(session);
-        settings.setDeviceModel("Nwolfhub userbot client");
+        if(args.length>0 && args[0].equals("testMode")) {
+            System.out.println("Working under test name");
+            settings.setDeviceModel("Nwolfhub test branch userbot client");
+        } else {
+            settings.setDeviceModel("Nwolfhub userbot client");
+        }
         client = new SimpleTelegramClient(settings);
         client.start(AuthenticationData.consoleLogin());
         UpdateHandler.initialize(client);
@@ -52,6 +57,13 @@ public class Main {
             try {
                 client.closeAndWait();
                 System.out.println("Client closed");
+                File documentsFolder = new File("session/documents");
+                String[]entries = documentsFolder.list();
+                for(String s:entries){
+                    File currentFile = new File(documentsFolder.getPath(),s);
+                    currentFile.delete();
+                }
+                documentsFolder.mkdir();
             } catch (InterruptedException e) {
                 System.out.println("Failed to close client");
             }

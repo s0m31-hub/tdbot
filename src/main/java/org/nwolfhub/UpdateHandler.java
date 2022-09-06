@@ -13,6 +13,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -146,10 +147,9 @@ public class UpdateHandler {
 
     private static String brokenText(String text) {
         StringBuilder ready = new StringBuilder();
-        boolean next = true;
+        Random r = new Random();
         for(String ch:text.split("")) {
-            ready.append(next?ch.toUpperCase():ch.toLowerCase());
-            next = !next;
+            ready.append(r.nextInt(2)==1?ch.toUpperCase():ch.toLowerCase());
         }
         return ready.toString();
     }
@@ -328,6 +328,105 @@ public class UpdateHandler {
         return result.toString();
     }
 
+    public static void importFile(TdApi.UpdateNewMessage update, final String rename) {
+        TdApi.EditMessageCaption editMessageText = new TdApi.EditMessageCaption();
+        editMessageText.messageId = update.message.id;
+        editMessageText.chatId = update.message.chatId;
+        TdApi.File document = ((TdApi.MessageDocument) update.message.content).document.document;
+        TdApi.DownloadFile getFile = new TdApi.DownloadFile();
+        getFile.fileId = document.id;
+        getFile.priority = 32;
+        File documentsFolder = new File("session/documents");
+        String[]entries = documentsFolder.list();
+        for(String s:entries){
+            File currentFile = new File(documentsFolder.getPath(),s);
+            currentFile.delete();
+        }
+        documentsFolder.mkdir();
+        client.send(getFile, result -> {
+            editMessageText.caption = new TdApi.FormattedText("Downloading file...", new TdApi.TextEntity[0]);
+            client.send(editMessageText, UpdateHandler::requestFailHandler);
+            if(result.isError()) {
+                System.out.println(result.getError());
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException ignored) {}
+            editMessageText.caption = new TdApi.FormattedText("Moving file...", new TdApi.TextEntity[0]);
+            client.send(editMessageText, UpdateHandler::requestFailHandler);
+            try {
+                String[] entries2 = documentsFolder.list();
+                for(String s:entries2){
+                    File downloaded = new File(documentsFolder.getPath(),s);
+                    String localRename = rename==null?downloaded.getName():rename;
+                    downloaded.renameTo(new File(localRename));
+                    editMessageText.caption = new TdApi.FormattedText("Download completed", new TdApi.TextEntity[0]);
+                    client.send(editMessageText, UpdateHandler::requestFailHandler);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                editMessageText.caption = new TdApi.FormattedText("Download failed", new TdApi.TextEntity[0]);
+                client.send(editMessageText, UpdateHandler::requestFailHandler);
+            }
+        });
+    }
+    
+    public static void animateMessage(String text, TdApi.UpdateNewMessage update) throws IOException {
+        String[] splitMsg = text.split(" ");
+        if(splitMsg[0].equals("!animate") && splitMsg.length==2) {
+            String name = splitMsg[1];
+            TdApi.EditMessageText request = new TdApi.EditMessageText();
+            request.chatId = update.message.chatId;
+            request.messageId = update.message.id;
+            try {
+                MessageAnimation animation = MessageAnimationHandler.importAnimation(name);
+                for (String action : animation.getActions()) {
+                    String[] split = action.split(":");
+                    if (split[0].equals("e")) {
+                        request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(split[1], new TdApi.TextEntity[0]), true, true);
+                        client.send(request, UpdateHandler::requestFailHandler);
+                    } else if (split[0].equals("d")) {
+                        try {
+                            Thread.sleep(Integer.parseInt(split[1]));
+                        } catch (InterruptedException ignored) {
+                        }
+                    } else if(split[0].equals("p")) System.out.println(split[1]);
+                }
+            } catch (IOException e) {
+                request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Error occurred while importing animation: " + e, new TdApi.TextEntity[0]), true, true);
+                client.send(request, UpdateHandler::requestFailHandler);
+            }
+        }
+    }
+
+    public static void sendHelp(TdApi.UpdateNewMessage update) {
+        TdApi.EditMessageText request = new TdApi.EditMessageText();
+        request.chatId = update.message.chatId;
+        request.messageId = update.message.id;
+        String help = """
+                Thanks for using tdbot! Making future in nwolfhub with Java and \u2764\uFE0F
+                Here is what you can do now:
+                
+                !ignore *id* - add user to ignore list
+                
+                !unignore *id - remove user from ignore list
+                
+                !reverse *text* - reverse message
+                
+                !mix, !broke *text* - mix uppercase and lowercase characters
+                
+                !continue - use AI to continue a phrase. Better with russian texts
+                
+                !upgrade *style* *text* - write text with another style
+                
+                !animate *animation name* - apply some magic to your message!
+                
+                !import - download file from attachment
+                """;
+        request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(help, new TdApi.TextEntity[0]), true, true);
+        client.send(request, UpdateHandler::requestFailHandler);
+    }
+
     public static void processUpdate(TdApi.UpdateNewMessage update) {
         try {
             if (update.message.isOutgoing) {
@@ -344,6 +443,16 @@ public class UpdateHandler {
                     if(text.contains("!mix") || text.contains("!broke")) mix(text, update);
                     if(text.contains("!continue")) continueText(text, update);
                     if(text.contains("!upgrade")) upgradeText(text, update);
+                    if(text.contains("!animate")) animateMessage(text, update);
+                    if(text.equals("!help")) sendHelp(update);
+                } else if(update.message.content instanceof TdApi.MessageDocument) {
+                    String text = ((TdApi.MessageDocument) update.message.content).caption.text;
+                    if(text.contains("!import")) {
+                        String[] split = text.split(" ");
+                        if(split[0].equals("!import")) {
+                            importFile(update, split.length>1?split[1]:null);
+                        }
+                    }
                 }
             } else {
                 long sender = 0;

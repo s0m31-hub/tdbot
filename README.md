@@ -16,8 +16,6 @@ All other files will be created automatically.
 
 Choose any login method you want and follow guidelines.
 
-
-
 When you finish, just type !help in any chat
 
 ## Creating animations
@@ -30,14 +28,16 @@ When you finish, just type !help in any chat
 
 ### Action list
 
-* editTo:text - edits text. 
+* `editTo:text` - edits text. 
 
-* delay:time - waits some time before next command
+* `delay:time` - waits some time before next command
 
-* print:text - prints text into console
+* `print:text` - prints text into console
 
-There is an [example](https://github.com/s0m31-hub/tdbot/blob/main/test.numar) in a project page
+* `append:time:text` - appends text at the end of previous one. Will make a *time* delay between two characters
 
+* `subtract:time:amount` - subtracts *amount* characters from the end of previous text. Will make a *time* delay between two characters
 
+There is an [example](https://github.com/s0m31-hub/tdbot/blob/main/test.numar) in a project page. A better example for 1.1+ is available [here](https://github.com/s0m31-hub/tdbot/blob/main/test2.numar)
 
 

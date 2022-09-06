@@ -115,7 +115,7 @@ public class MessageAnimationHandler {
                             if(last>=0) {
                                 actions.add("a:" + split[1] + ":LTB" + getTextFromIndex(actions, last) + "LTE:" + split[2]);
                             } else {
-                                actions.add("a:" + split[1] + ":LTB.LTE:" + split[2]);
+                                actions.add("a:" + split[1] + ":LTB LTE:" + split[2]);
                             }
                         } else if(split[0].equals("subtract")) {
                             int last = findPreviousText(actions, now);

@@ -391,6 +391,27 @@ public class UpdateHandler {
                         } catch (InterruptedException ignored) {
                         }
                     } else if(split[0].equals("p")) System.out.println(split[1]);
+                    else if(split[0].equals("a")) {
+                        StringBuilder now = new StringBuilder();
+                        now.append(action.split(":LTB")[1].split("LTE:")[0]);
+                        for(String c:split[3].split("")) {
+                            now.append(c);
+                            request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(now.toString(), new TdApi.TextEntity[0]), true, true);
+                            client.send(request, UpdateHandler::requestFailHandler);
+                            try {
+                                Thread.sleep(Integer.parseInt(split[1]));
+                            } catch (InterruptedException ignored) {}
+                        }
+                    } else if(split[0].equals("s")) {
+                        String now = (action.split(":LTB")[1].split("LTE:")[0]);
+                        for(int cur = 1; cur <= Integer.parseInt(split[2]); cur++) {
+                            request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(now.substring(0, now.length()-cur), new TdApi.TextEntity[0]), true, true);
+                            client.send(request, UpdateHandler::requestFailHandler);
+                            try {
+                                Thread.sleep(Integer.parseInt(split[1]));
+                            } catch (InterruptedException ignored) {}
+                        }
+                    }
                 }
             } catch (IOException e) {
                 request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Error occurred while importing animation: " + e, new TdApi.TextEntity[0]), true, true);

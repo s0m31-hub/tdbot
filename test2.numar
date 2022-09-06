@@ -1,0 +1,7 @@
+editTo:W;
+append:100:ay better hello;
+delay:300;
+subtract:100:14;
+delay:100;
+editTo:F;
+append:100:rom Nwolfhub;

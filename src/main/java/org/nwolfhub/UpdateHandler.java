@@ -21,16 +21,91 @@ import java.util.concurrent.atomic.AtomicLong;
 public class UpdateHandler {
     public static Set<Long> blacklist;
     private static SimpleTelegramClient client;
+    private static List<BombedMessage> deletions;
     private static final List<String> patterns = Arrays.asList("bubbles", "squares", "gothic", "cursive");
+
+
+    private static class BombedMessage {
+        public Long chatId;
+        public Long messageId;
+        public Long deletionTs;
+        public Long nextUpdate;
+        public String originalText;
+
+        public Long getChatId() {
+            return chatId;
+        }
+
+        public String getOriginalText() {
+            return originalText;
+        }
+
+        public Long getNextUpdate() {
+            return nextUpdate;
+        }
+
+        public BombedMessage setNextUpdate() {
+            long sub = (deletionTs - System.currentTimeMillis())/1000L;
+            if(sub>86400) {
+                this.nextUpdate = getNextUpdate()+43200000L;
+            } else if(sub>3600) {
+                this.nextUpdate = getNextUpdate()+1300000L;
+            } else if(sub>60) {
+                this.nextUpdate = getNextUpdate() + 10000L;
+            } else {
+                this.nextUpdate = getNextUpdate() + 1000L;
+            }
+            return this;
+        }
+
+        public BombedMessage setNextUpdate(Long nextUpdate) {
+            this.nextUpdate = nextUpdate;
+            return this;
+        }
+
+        public BombedMessage setChatId(Long chatId) {
+            this.chatId = chatId;
+            return this;
+        }
+
+        public BombedMessage setMessageId(Long messageId) {
+            this.messageId = messageId;
+            return this;
+        }
+
+        public BombedMessage setDeletionTs(Long deletionTs) {
+            this.deletionTs = deletionTs;
+            return this;
+        }
+
+        public BombedMessage setOriginalText(String originalText) {
+            this.originalText = originalText;
+            return this;
+        }
+
+        public Long getMessageId() {
+            return messageId;
+        }
+
+
+        public Long getDeletionTs() {
+            return deletionTs;
+        }
+
+
+        public BombedMessage() {
+        }
+    }
+
     @SuppressWarnings("ResultOfMethodCallIgnored")
     public static void initialize(SimpleTelegramClient client) throws IOException {
         UpdateHandler.client = client;
         File blackFile = new File("blackFile");
-        if(!blackFile.exists()) {
+        if (!blackFile.exists()) {
             blackFile.createNewFile();
             blacklist = new HashSet<>();
         } else {
-            try(ObjectInputStream in = new ObjectInputStream(new FileInputStream(blackFile))) {
+            try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(blackFile))) {
                 // noinspection unchecked
                 blacklist = (Set<Long>) in.readObject();
             } catch (ClassNotFoundException e) {
@@ -39,27 +114,29 @@ public class UpdateHandler {
         }
         System.out.println("Update handler initialized. Blacklisted users: " + blacklist.size());
     }
+
     @SuppressWarnings("rawtypes")
     public static void requestFailHandler(Result result) {
-        if(result.isError()) {
+        if (result.isError()) {
             System.out.println("Failed to execute request: " + result.getError());
         }
     }
+
     @SuppressWarnings("SynchronizeOnNonFinalField")
     private static void ignore(long chatId, TdApi.UpdateNewMessage update) {
-        if(update.message.senderId instanceof TdApi.MessageSenderUser) {
+        if (update.message.senderId instanceof TdApi.MessageSenderUser) {
             TdApi.EditMessageText request = new TdApi.EditMessageText();
-            if(chatId>0) {
+            if (chatId > 0) {
                 blacklist.add(chatId);
-                request.chatId=chatId;
-                request.messageId=update.message.id;
+                request.chatId = chatId;
+                request.messageId = update.message.id;
                 request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(chatId + " was added to ignore list", new TdApi.TextEntity[0]), false, false);
                 client.send(request, UpdateHandler::requestFailHandler);
             } else {
-                if(update.message.replyToMessageId == 0) {
+                if (update.message.replyToMessageId == 0) {
                     request = new TdApi.EditMessageText();
-                    request.chatId=chatId;
-                    request.messageId=update.message.id;
+                    request.chatId = chatId;
+                    request.messageId = update.message.id;
                     request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Please reply to a message", new TdApi.TextEntity[0]), false, false);
                     client.send(request, UpdateHandler::requestFailHandler);
                     return;
@@ -71,8 +148,8 @@ public class UpdateHandler {
                         blacklist.add(sender.get());
                     }
                     TdApi.EditMessageText request2 = new TdApi.EditMessageText();
-                    request2.chatId=chatId;
-                    request2.messageId=update.message.id;
+                    request2.chatId = chatId;
+                    request2.messageId = update.message.id;
                     request2.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(sender.get() + " was added to ignore list", new TdApi.TextEntity[0]), false, false);
                     client.send(request2, UpdateHandler::requestFailHandler);
                 });
@@ -82,19 +159,19 @@ public class UpdateHandler {
 
     @SuppressWarnings({"SynchronizeOnNonFinalField", "SpellCheckingInspection"})
     public static void unignore(long chatId, TdApi.UpdateNewMessage update) {
-        if(update.message.senderId instanceof TdApi.MessageSenderUser) {
+        if (update.message.senderId instanceof TdApi.MessageSenderUser) {
             TdApi.EditMessageText request = new TdApi.EditMessageText();
-            if(chatId>0) {
+            if (chatId > 0) {
                 blacklist.remove(chatId);
-                request.chatId=chatId;
-                request.messageId=update.message.id;
+                request.chatId = chatId;
+                request.messageId = update.message.id;
                 request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(chatId + " was removed from ignore list", new TdApi.TextEntity[0]), false, false);
                 client.send(request, UpdateHandler::requestFailHandler);
             } else {
-                if(update.message.replyToMessageId == 0) {
+                if (update.message.replyToMessageId == 0) {
                     request = new TdApi.EditMessageText();
-                    request.chatId=chatId;
-                    request.messageId=update.message.id;
+                    request.chatId = chatId;
+                    request.messageId = update.message.id;
                     request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Please reply to a message", new TdApi.TextEntity[0]), false, false);
                     client.send(request, UpdateHandler::requestFailHandler);
                     return;
@@ -106,8 +183,8 @@ public class UpdateHandler {
                         blacklist.remove(sender.get());
                     }
                     TdApi.EditMessageText request2 = new TdApi.EditMessageText();
-                    request2.chatId=chatId;
-                    request2.messageId=update.message.id;
+                    request2.chatId = chatId;
+                    request2.messageId = update.message.id;
                     request2.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(sender.get() + " was removed from ignore list", new TdApi.TextEntity[0]), false, false);
                     client.send(request2, UpdateHandler::requestFailHandler);
                 });
@@ -123,27 +200,27 @@ public class UpdateHandler {
     public static void reverse(String text, TdApi.UpdateNewMessage update) {
         TdApi.EditMessageText request = new TdApi.EditMessageText();
         long chatId = update.message.chatId;
-        if(text.equalsIgnoreCase("!reverse")) {
-            if(update.message.replyToMessageId == 0) {
-                request.chatId=chatId;
-                request.messageId=update.message.id;
+        if (text.equalsIgnoreCase("!reverse")) {
+            if (update.message.replyToMessageId == 0) {
+                request.chatId = chatId;
+                request.messageId = update.message.id;
                 request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Please reply to a message", new TdApi.TextEntity[0]), false, false);
                 client.send(request, UpdateHandler::requestFailHandler);
             } else {
                 client.send(new TdApi.GetMessage(chatId, update.message.replyToMessageId), response -> {
-                    String textToInverse = ((TdApi.MessageText)response.get().content).text.text;
-                    request.chatId=chatId;
-                    request.messageId=update.message.id;
+                    String textToInverse = ((TdApi.MessageText) response.get().content).text.text;
+                    request.chatId = chatId;
+                    request.messageId = update.message.id;
                     request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(reverse(textToInverse), new TdApi.TextEntity[0]), false, false);
                     client.send(request, UpdateHandler::requestFailHandler);
                 });
             }
         } else if (text.toLowerCase().contains("!reverse")) {
             String[] split = text.split(" ");
-            if(split[0].equals("!reverse") && split.length > 1) {
+            if (split[0].equals("!reverse") && split.length > 1) {
                 String textToInverse = text.replace("!reverse ", "");
-                request.chatId=chatId;
-                request.messageId=update.message.id;
+                request.chatId = chatId;
+                request.messageId = update.message.id;
                 request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(reverse(textToInverse), new TdApi.TextEntity[0]), false, false);
                 client.send(request, UpdateHandler::requestFailHandler);
             }
@@ -153,8 +230,8 @@ public class UpdateHandler {
     private static String brokenText(String text) {
         StringBuilder ready = new StringBuilder();
         Random r = new Random();
-        for(String ch:text.split("")) {
-            ready.append(r.nextInt(2)==1?ch.toUpperCase():ch.toLowerCase());
+        for (String ch : text.split("")) {
+            ready.append(r.nextInt(2) == 1 ? ch.toUpperCase() : ch.toLowerCase());
         }
         return ready.toString();
     }
@@ -162,23 +239,27 @@ public class UpdateHandler {
     public static void mix(String text, TdApi.UpdateNewMessage update) {
         TdApi.EditMessageText request = new TdApi.EditMessageText();
         long chatId = update.message.chatId;
-        if(text.equalsIgnoreCase("!mix") || text.equalsIgnoreCase("!broke")) {
-            if(update.message.replyToMessageId == 0) {
-                request.chatId=chatId;
-                request.messageId=update.message.id;
+        if (text.equalsIgnoreCase("!mix") || text.equalsIgnoreCase("!broke")) {
+            if (update.message.replyToMessageId == 0) {
+                request.chatId = chatId;
+                request.messageId = update.message.id;
                 request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Please reply to a message", new TdApi.TextEntity[0]), false, false);
                 client.send(request, UpdateHandler::requestFailHandler);
             } else {
                 client.send(new TdApi.GetMessage(chatId, update.message.replyToMessageId), response -> {
-                    String newText = ((TdApi.MessageText)response.get().content).text.text;
-                    request.chatId = chatId; request.messageId = update.message.id; request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(brokenText(newText), new TdApi.TextEntity[0]), false, false);
+                    String newText = ((TdApi.MessageText) response.get().content).text.text;
+                    request.chatId = chatId;
+                    request.messageId = update.message.id;
+                    request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(brokenText(newText), new TdApi.TextEntity[0]), false, false);
                     client.send(request, UpdateHandler::requestFailHandler);
                 });
             }
         } else {
             String[] split = text.split(" ");
-            if(split[0].equalsIgnoreCase("!mix") || split[0].equalsIgnoreCase("!broke")) {
-                request.chatId = chatId; request.messageId = update.message.id; request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(brokenText(text.replace("!mix ", "").replace("!broke ", "")), new TdApi.TextEntity[0]), false, false);
+            if (split[0].equalsIgnoreCase("!mix") || split[0].equalsIgnoreCase("!broke")) {
+                request.chatId = chatId;
+                request.messageId = update.message.id;
+                request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(brokenText(text.replace("!mix ", "").replace("!broke ", "")), new TdApi.TextEntity[0]), false, false);
                 client.send(request, UpdateHandler::requestFailHandler);
             }
         }
@@ -188,7 +269,7 @@ public class UpdateHandler {
         OkHttpClient okClient = new OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).writeTimeout(20, TimeUnit.SECONDS).build();
         Random r = new Random();
         Response response = okClient.newCall(new Request.Builder().url("https://pelevin.gpt.dobro.ai/generate/").post(RequestBody.create(("{\"prompt\": \"" + text.replace("\n", "%0A") + "\", \"length\": " + (r.nextInt(65) + 15) + "}").getBytes(StandardCharsets.UTF_8))).build()).execute();
-        if(response.isSuccessful()) {
+        if (response.isSuccessful()) {
             JsonArray responses = JsonParser.parseString(Objects.requireNonNull(response.body()).string()).getAsJsonObject().get("replies").getAsJsonArray();
             response.close();
             return responses.get(r.nextInt(responses.size())).getAsString();
@@ -200,10 +281,10 @@ public class UpdateHandler {
 
     public static void continueText(String text, TdApi.UpdateNewMessage update) {
         TdApi.EditMessageText request = new TdApi.EditMessageText();
-        if(text.equals("!continue")) {
-            if(update.message.replyToMessageId == 0) {
-                request.chatId=update.message.chatId;
-                request.messageId=update.message.id;
+        if (text.equals("!continue")) {
+            if (update.message.replyToMessageId == 0) {
+                request.chatId = update.message.chatId;
+                request.messageId = update.message.id;
                 request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Please reply to a message", new TdApi.TextEntity[0]), false, false);
                 client.send(request, UpdateHandler::requestFailHandler);
             } else {
@@ -213,7 +294,7 @@ public class UpdateHandler {
                     request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Request sent. Processing...", new TdApi.TextEntity[0]), false, false);
                     client.send(request, UpdateHandler::requestFailHandler);
                     try {
-                        String oldText = ((TdApi.MessageText)result.get().content).text.text;
+                        String oldText = ((TdApi.MessageText) result.get().content).text.text;
                         String newText = continueText(oldText);
                         request.chatId = update.message.chatId;
                         request.messageId = update.message.id;
@@ -229,7 +310,7 @@ public class UpdateHandler {
             }
         } else {
             String[] split = text.split(" ");
-            if(split[0].equalsIgnoreCase("!continue")) {
+            if (split[0].equalsIgnoreCase("!continue")) {
                 request.chatId = update.message.chatId;
                 request.messageId = update.message.id;
                 request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Request sent. Processing...", new TdApi.TextEntity[0]), false, false);
@@ -254,24 +335,24 @@ public class UpdateHandler {
     public static void upgradeText(String text, TdApi.UpdateNewMessage update) {
         TdApi.EditMessageText request = new TdApi.EditMessageText();
         String[] split = text.split(" ");
-        if(split.length==1) {
-            request.chatId=update.message.chatId;
-            request.messageId=update.message.id;
+        if (split.length == 1) {
+            request.chatId = update.message.chatId;
+            request.messageId = update.message.id;
             request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Usage: !upgrade pattern", new TdApi.TextEntity[0]), false, false);
             client.send(request, UpdateHandler::requestFailHandler);
         }
-        if(split.length==2 && split[0].equalsIgnoreCase("!upgrade")) {
-            if(update.message.replyToMessageId == 0) {
-                request.chatId=update.message.chatId;
-                request.messageId=update.message.id;
+        if (split.length == 2 && split[0].equalsIgnoreCase("!upgrade")) {
+            if (update.message.replyToMessageId == 0) {
+                request.chatId = update.message.chatId;
+                request.messageId = update.message.id;
                 request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Please reply to a message", new TdApi.TextEntity[0]), false, false);
                 client.send(request, UpdateHandler::requestFailHandler);
             } else {
                 client.send(new TdApi.GetMessage(update.message.chatId, update.message.replyToMessageId), response -> {
                     request.chatId = update.message.chatId;
                     request.messageId = update.message.id;
-                    String oldText = ((TdApi.MessageText)response.get().content).text.text;
-                    if(patterns.contains(split[1].toLowerCase())) {
+                    String oldText = ((TdApi.MessageText) response.get().content).text.text;
+                    if (patterns.contains(split[1].toLowerCase())) {
                         request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(upgradeText(oldText, split[1].toLowerCase()), new TdApi.TextEntity[0]), false, false);
                     } else {
                         request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Pattern " + split[1] + " not found. Existing patterns:\n" + String.join(", ", patterns), new TdApi.TextEntity[0]), false, false);
@@ -279,11 +360,11 @@ public class UpdateHandler {
                     client.send(request, UpdateHandler::requestFailHandler);
                 });
             }
-        } else if(split.length>2 && split[0].equalsIgnoreCase("!upgrade")) {
+        } else if (split.length > 2 && split[0].equalsIgnoreCase("!upgrade")) {
             request.chatId = update.message.chatId;
             request.messageId = update.message.id;
             String oldText = text.replace("!upgrade " + split[1] + " ", "");
-            if(patterns.contains(split[1].toLowerCase())) {
+            if (patterns.contains(split[1].toLowerCase())) {
                 request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(upgradeText(oldText, split[1].toLowerCase()), new TdApi.TextEntity[0]), false, false);
             } else {
                 request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Pattern " + split[1] + " not found. Existing patterns:\n" + String.join(", ", patterns), new TdApi.TextEntity[0]), false, false);
@@ -343,28 +424,29 @@ public class UpdateHandler {
         getFile.fileId = document.id;
         getFile.priority = 32;
         File documentsFolder = new File("session/documents");
-        String[]entries = documentsFolder.list();
-        for(String s: Objects.requireNonNull(entries)){
-            File currentFile = new File(documentsFolder.getPath(),s);
+        String[] entries = documentsFolder.list();
+        for (String s : Objects.requireNonNull(entries)) {
+            File currentFile = new File(documentsFolder.getPath(), s);
             currentFile.delete();
         }
         documentsFolder.mkdir();
         client.send(getFile, result -> {
             editMessageText.caption = new TdApi.FormattedText("Downloading file...", new TdApi.TextEntity[0]);
             client.send(editMessageText, UpdateHandler::requestFailHandler);
-            if(result.isError()) {
+            if (result.isError()) {
                 System.out.println(result.getError());
             }
             try {
                 Thread.sleep(1000);
-            } catch (InterruptedException ignored) {}
+            } catch (InterruptedException ignored) {
+            }
             editMessageText.caption = new TdApi.FormattedText("Moving file...", new TdApi.TextEntity[0]);
             client.send(editMessageText, UpdateHandler::requestFailHandler);
             try {
                 String[] entries2 = documentsFolder.list();
-                for(String s: Objects.requireNonNull(entries2)){
-                    File downloaded = new File(documentsFolder.getPath(),s);
-                    String localRename = rename==null?downloaded.getName():rename;
+                for (String s : Objects.requireNonNull(entries2)) {
+                    File downloaded = new File(documentsFolder.getPath(), s);
+                    String localRename = rename == null ? downloaded.getName() : rename;
                     downloaded.renameTo(new File(localRename));
                     editMessageText.caption = new TdApi.FormattedText("Download completed", new TdApi.TextEntity[0]);
                     client.send(editMessageText, UpdateHandler::requestFailHandler);
@@ -376,10 +458,10 @@ public class UpdateHandler {
             }
         });
     }
-    
+
     public static void animateMessage(String text, TdApi.UpdateNewMessage update) {
         String[] splitMsg = text.split(" ");
-        if(splitMsg[0].equals("!animate") && splitMsg.length==2) {
+        if (splitMsg[0].equals("!animate") && splitMsg.length == 2) {
             String name = splitMsg[1];
             TdApi.EditMessageText request = new TdApi.EditMessageText();
             request.chatId = update.message.chatId;
@@ -388,7 +470,7 @@ public class UpdateHandler {
                 MessageAnimation animation = MessageAnimationHandler.importAnimation(name);
                 for (String action : animation.getActions()) {
                     String[] split = action.split(":");
-                    if(split[0].equals("ct")||split[0].equals("cta")) continue;
+                    if (split[0].equals("ct") || split[0].equals("cta")) continue;
                     switch (split[0]) {
                         case "e":
                             request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(split[1], new TdApi.TextEntity[0]), true, true);
@@ -442,6 +524,23 @@ public class UpdateHandler {
         }
     }
 
+
+    private static Long getDeletionMs() {
+
+    }
+
+    public static void bomb(TdApi.UpdateNewMessage update, String text) {
+        String[] split = text.split(" ");
+        if(split.length>=3) {
+            if(split[0].equals("!bomb")) {
+                try {
+                    Integer time = Integer.valueOf(split[1]);
+                    deletions.add(new BombedMessage().setDeletionTs())
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+    }
+
     @SuppressWarnings("SpellCheckingInspection")
     public static void sendHelp(TdApi.UpdateNewMessage update) {
         TdApi.EditMessageText request = new TdApi.EditMessageText();
@@ -449,23 +548,28 @@ public class UpdateHandler {
         request.messageId = update.message.id;
         String help = """
                 Thanks for using tdbot! Making future in nwolfhub with Java and \u2764\uFE0F
+                Installed version:""" + UpdateHandler.class.getPackage().getImplementationVersion() + """
+                ,
+                                
                 Here is what you can do now:
-                
+                                
                 !ignore *id* - add user to ignore list
-                
+                                
                 !unignore *id - remove user from ignore list
-                
+                                
                 !reverse *text* - reverse message
-                
+                                
                 !mix, !broke *text* - mix uppercase and lowercase characters
-                
+                                
                 !continue - use AI to continue a phrase. Better with russian texts
-                
+                                
                 !upgrade *style* *text* - write text with another style
-                
+                                
                 !animate *animation name* - apply some magic to your message!
-                
+                                
                 !import - download file from attachment
+                                
+                !bomb *time* *message* - delete a message after some time
                 """;
         request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(help, new TdApi.TextEntity[0]), true, true);
         client.send(request, UpdateHandler::requestFailHandler);
@@ -474,34 +578,34 @@ public class UpdateHandler {
     public static void processUpdate(TdApi.UpdateNewMessage update) {
         try {
             if (update.message.isOutgoing) {
-                if(update.message.content instanceof TdApi.MessageText) {
+                if (update.message.content instanceof TdApi.MessageText) {
                     String text = ((TdApi.MessageText) update.message.content).text.text;
                     long chatId = update.message.chatId;
                     if (text.toLowerCase(Locale.ROOT).equals("!ignore")) {
                         ignore(chatId, update);
                     } else //noinspection SpellCheckingInspection
                         if (text.toLowerCase(Locale.ROOT).equals("!unignore")) {
-                        unignore(chatId, update);
-                    } else if (text.toLowerCase().contains("!reverse")) {
-                        reverse(text, update);
-                    }
-                    if(text.contains("!mix") || text.contains("!broke")) mix(text, update);
-                    if(text.contains("!continue")) continueText(text, update);
-                    if(text.contains("!upgrade")) upgradeText(text, update);
-                    if(text.contains("!animate")) animateMessage(text, update);
-                    if(text.equals("!help")) sendHelp(update);
-                } else if(update.message.content instanceof TdApi.MessageDocument) {
+                            unignore(chatId, update);
+                        } else if (text.toLowerCase().contains("!reverse")) {
+                            reverse(text, update);
+                        }
+                    if (text.contains("!mix") || text.contains("!broke")) mix(text, update);
+                    if (text.contains("!continue")) continueText(text, update);
+                    if (text.contains("!upgrade")) upgradeText(text, update);
+                    if (text.contains("!animate")) animateMessage(text, update);
+                    if (text.equals("!help")) sendHelp(update);
+                } else if (update.message.content instanceof TdApi.MessageDocument) {
                     String text = ((TdApi.MessageDocument) update.message.content).caption.text;
-                    if(text.contains("!import")) {
+                    if (text.contains("!import")) {
                         String[] split = text.split(" ");
-                        if(split[0].equals("!import")) {
-                            importFile(update, split.length>1?split[1]:null);
+                        if (split[0].equals("!import")) {
+                            importFile(update, split.length > 1 ? split[1] : null);
                         }
                     }
                 }
             } else {
                 long sender;
-                if(update.message.canBeDeletedOnlyForSelf || update.message.canBeDeletedForAllUsers) {
+                if (update.message.canBeDeletedOnlyForSelf || update.message.canBeDeletedForAllUsers) {
                     if (update.message.senderId instanceof TdApi.MessageSenderUser)
                         sender = ((TdApi.MessageSenderUser) update.message.senderId).userId;
                     else {
@@ -515,6 +619,44 @@ public class UpdateHandler {
         } catch (Exception e) {
             System.out.println("Ignoring exception:");
             e.printStackTrace();
+        }
+    }
+
+    private static String getDeletionTime(Long msgTs) {
+        long sub = (msgTs - System.currentTimeMillis())/1000L;
+        if(sub>86400) {
+            return sub/86400 + " days";
+        } else if(sub>=3600) {
+            return sub/3600 + " hours";
+        } else if(sub>=60) {
+            return sub/60 + " minutes";
+        } else return sub + " seconds";
+    }
+
+    private static void watchDeletions() {
+        while (true) {
+            for (BombedMessage message : deletions) {
+                if (message.getDeletionTs() <= System.currentTimeMillis()) {
+                    TdApi.DeleteMessages deleteMessages = new TdApi.DeleteMessages();
+                    deleteMessages.chatId = message.getChatId();
+                    deleteMessages.messageIds = new long[]{message.getMessageId()};
+                    deleteMessages.revoke = true;
+                    client.send(deleteMessages, result -> {
+                        if (!result.isError()) {
+                            deletions.remove(message);
+                            System.out.println("Failed to delete message: " + result.getError());
+                        }
+                    });
+                } else if (message.nextUpdate <= System.currentTimeMillis()) {
+                    TdApi.EditMessageText request = new TdApi.EditMessageText();
+                    request.messageId = message.getMessageId();
+                    request.chatId = message.getChatId();
+                    request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(message.getOriginalText() + "\n\nMessage will be deleted in " + getDeletionTime(message.getDeletionTs()), new TdApi.TextEntity[0]), true, true);
+                    client.send(request, UpdateHandler::requestFailHandler);
+                    deletions.remove(message);
+                    deletions.add(message.setNextUpdate());
+                }
+            }
         }
     }
 }

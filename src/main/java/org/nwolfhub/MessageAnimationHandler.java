@@ -64,11 +64,17 @@ public class MessageAnimationHandler {
         StringBuilder builder = new StringBuilder();
         for(String action:actions) {
             String[] split = action.split(":");
-            if(split[0].equals("ct")) {
-                builder = new StringBuilder();
-                builder.append(split[1]);
-            } else if(split[0].equals("cta")) {
-                builder.append(split[1]);
+            switch (split[0]) {
+                case "ct" -> {
+                    builder = new StringBuilder();
+                    builder.append(split[1]);
+                }
+                case "cta" -> builder.append(split[1]);
+                case "cts" -> {
+                    String removed = builder.substring(0, Integer.parseInt(split[1]));
+                    builder = new StringBuilder();
+                    builder.append(removed);
+                }
             }
         }
         return builder.toString();

@@ -1,4 +1,5 @@
 # TDBOT by Nwolfhub
+![tdbot](https://i.imgur.com/ArPH5v9.png)
 
 ## Downloading
 

@@ -13,15 +13,16 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+@SuppressWarnings("ResultOfMethodCallIgnored")
 public class UpdateHandler {
     public static Set<Long> blacklist;
     private static SimpleTelegramClient client;
     private static final List<String> patterns = Arrays.asList("bubbles", "squares", "gothic", "cursive");
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     public static void initialize(SimpleTelegramClient client) throws IOException {
         UpdateHandler.client = client;
         File blackFile = new File("blackFile");
@@ -30,18 +31,24 @@ public class UpdateHandler {
             blacklist = new HashSet<>();
         } else {
             try(ObjectInputStream in = new ObjectInputStream(new FileInputStream(blackFile))) {
-                blacklist = (Set<Long>) in.readObject();
+                Object o = in.readObject();
+                if(o instanceof Set) {
+                    //noinspection unchecked,rawtypes
+                    blacklist = (Set) o;
+                } blacklist = new HashSet<>();
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }
         }
         System.out.println("Update handler initialized. Blacklisted users: " + blacklist.size());
     }
+    @SuppressWarnings("rawtypes")
     public static void requestFailHandler(Result result) {
         if(result.isError()) {
             System.out.println("Failed to execute request: " + result.getError());
         }
     }
+    @SuppressWarnings("SynchronizeOnNonFinalField")
     private static void ignore(long chatId, TdApi.UpdateNewMessage update) {
         if(update.message.senderId instanceof TdApi.MessageSenderUser) {
             TdApi.EditMessageText request = new TdApi.EditMessageText();
@@ -76,6 +83,7 @@ public class UpdateHandler {
         }
     }
 
+    @SuppressWarnings({"SynchronizeOnNonFinalField", "SpellCheckingInspection"})
     public static void unignore(long chatId, TdApi.UpdateNewMessage update) {
         if(update.message.senderId instanceof TdApi.MessageSenderUser) {
             TdApi.EditMessageText request = new TdApi.EditMessageText();
@@ -184,9 +192,11 @@ public class UpdateHandler {
         Random r = new Random();
         Response response = okClient.newCall(new Request.Builder().url("https://pelevin.gpt.dobro.ai/generate/").post(RequestBody.create(("{\"prompt\": \"" + text.replace("\n", "%0A") + "\", \"length\": " + (r.nextInt(65) + 15) + "}").getBytes(StandardCharsets.UTF_8))).build()).execute();
         if(response.isSuccessful()) {
-            JsonArray responses = JsonParser.parseString(response.body().string()).getAsJsonObject().get("replies").getAsJsonArray();
+            JsonArray responses = JsonParser.parseString(Objects.requireNonNull(response.body()).string()).getAsJsonObject().get("replies").getAsJsonArray();
+            response.close();
             return responses.get(r.nextInt(responses.size())).getAsString();
         } else {
+            response.close();
             throw new IOException(response.message());
         }
     }
@@ -291,38 +301,37 @@ public class UpdateHandler {
         String translate = toLatinTrans.transliterate(text).toLowerCase();
         System.out.println(translate);
         StringBuilder result = new StringBuilder();
-        List<String> english = Arrays.asList("abcdefghijklmnopqrstuvwxyz".split(""));
+        @SuppressWarnings("SpellCheckingInspection") List<String> english = Arrays.asList("abcdefghijklmnopqrstuvwxyz".split(""));
         switch (pattern) {
-            case "bubbles": {
+            case "bubbles" -> {
                 List<String> another = Arrays.asList("\uD83C\uDD50 \uD83C\uDD51 \uD83C\uDD52 \uD83C\uDD53 \uD83C\uDD54 \uD83C\uDD55 \uD83C\uDD56 \uD83C\uDD57 \uD83C\uDD58 \uD83C\uDD59 \uD83C\uDD5A \uD83C\uDD5B \uD83C\uDD5C \uD83C\uDD5D \uD83C\uDD5E \uD83C\uDD5F \uD83C\uDD60 \uD83C\uDD61 \uD83C\uDD62 \uD83C\uDD63 \uD83C\uDD64 \uD83C\uDD65 \uD83C\uDD66 \uD83C\uDD67 \uD83C\uDD68 \uD83C\uDD69".split(" "));
-                for(String character:translate.split("")) {
-                    if(english.contains(character)) result.append(another.get(english.indexOf(character)));
+                for (String character : translate.split("")) {
+                    if (english.contains(character)) result.append(another.get(english.indexOf(character)));
                     else result.append(character);
                 }
-                break;
-            } case "squares": {
+            }
+            case "squares" -> {
                 List<String> another = Arrays.asList("\uD83C\uDD70 \uD83C\uDD71 \uD83C\uDD72 \uD83C\uDD73 \uD83C\uDD74 \uD83C\uDD75 \uD83C\uDD76 \uD83C\uDD77 \uD83C\uDD78 \uD83C\uDD79 \uD83C\uDD7A \uD83C\uDD7B \uD83C\uDD7C \uD83C\uDD7D \uD83C\uDD7E \uD83C\uDD7F \uD83C\uDD80 \uD83C\uDD81 \uD83C\uDD82 \uD83C\uDD83 \uD83C\uDD84 \uD83C\uDD85 \uD83C\uDD86 \uD83C\uDD87 \uD83C\uDD88 \uD83C\uDD89".split(" "));
-                for(String character:translate.split("")) {
-                    if(english.contains(character)) result.append(another.get(english.indexOf(character)));
+                for (String character : translate.split("")) {
+                    if (english.contains(character)) result.append(another.get(english.indexOf(character)));
                     else result.append(character);
                 }
-                break;
-            } case "gothic": {
+            }
+            case "gothic" -> {
                 List<String> another = Arrays.asList("\uD835\uDD86 \uD835\uDD87 \uD835\uDD88 \uD835\uDD89 \uD835\uDD8A \uD835\uDD8B \uD835\uDD8C \uD835\uDD8D \uD835\uDD8E \uD835\uDD8F \uD835\uDD90 \uD835\uDD91 \uD835\uDD92 \uD835\uDD93 \uD835\uDD94 \uD835\uDD95 \uD835\uDD96 \uD835\uDD97 \uD835\uDD98 \uD835\uDD99 \uD835\uDD9A \uD835\uDD9B \uD835\uDD9C \uD835\uDD9D \uD835\uDD9E \uD835\uDD9F".split(" "));
-                for(String character:translate.split("")) {
-                    if(english.contains(character)) result.append(another.get(english.indexOf(character)));
+                for (String character : translate.split("")) {
+                    if (english.contains(character)) result.append(another.get(english.indexOf(character)));
                     else result.append(character);
                 }
-                break;
-            } case "cursive": {
+            }
+            case "cursive" -> {
                 List<String> another = Arrays.asList("\uD835\uDCEA \uD835\uDCEB \uD835\uDCEC \uD835\uDCED \uD835\uDCEE \uD835\uDCEF \uD835\uDCF0 \uD835\uDCF1 \uD835\uDCF2 \uD835\uDCF3 \uD835\uDCF4 \uD835\uDCF5 \uD835\uDCF6 \uD835\uDCF7 \uD835\uDCF8 \uD835\uDCF9 \uD835\uDCFA \uD835\uDCFB \uD835\uDCFC \uD835\uDCFD \uD835\uDCFE \uD835\uDCFF \uD835\uDD00 \uD835\uDD01 \uD835\uDD02 \uD835\uDD03".split(" "));
                 result.append("༺");
-                for(String character:translate.split("")) {
-                    if(english.contains(character)) result.append(another.get(english.indexOf(character)));
+                for (String character : translate.split("")) {
+                    if (english.contains(character)) result.append(another.get(english.indexOf(character)));
                     else result.append(character);
                 }
                 result.append("༻");
-                break;
             }
         }
         return result.toString();
@@ -338,7 +347,7 @@ public class UpdateHandler {
         getFile.priority = 32;
         File documentsFolder = new File("session/documents");
         String[]entries = documentsFolder.list();
-        for(String s:entries){
+        for(String s: Objects.requireNonNull(entries)){
             File currentFile = new File(documentsFolder.getPath(),s);
             currentFile.delete();
         }
@@ -356,7 +365,7 @@ public class UpdateHandler {
             client.send(editMessageText, UpdateHandler::requestFailHandler);
             try {
                 String[] entries2 = documentsFolder.list();
-                for(String s:entries2){
+                for(String s: Objects.requireNonNull(entries2)){
                     File downloaded = new File(documentsFolder.getPath(),s);
                     String localRename = rename==null?downloaded.getName():rename;
                     downloaded.renameTo(new File(localRename));
@@ -371,7 +380,7 @@ public class UpdateHandler {
         });
     }
     
-    public static void animateMessage(String text, TdApi.UpdateNewMessage update) throws IOException {
+    public static void animateMessage(String text, TdApi.UpdateNewMessage update) {
         String[] splitMsg = text.split(" ");
         if(splitMsg[0].equals("!animate") && splitMsg.length==2) {
             String name = splitMsg[1];
@@ -383,37 +392,49 @@ public class UpdateHandler {
                 for (String action : animation.getActions()) {
                     String[] split = action.split(":");
                     if(split[0].equals("ct")||split[0].equals("cta")) continue;
-                    if (split[0].equals("e")) {
-                        request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(split[1], new TdApi.TextEntity[0]), true, true);
-                        client.send(request, UpdateHandler::requestFailHandler);
-                    } else if (split[0].equals("d")) {
-                        try {
-                            Thread.sleep(Integer.parseInt(split[1]));
-                        } catch (InterruptedException ignored) {
-                        }
-                    } else if(split[0].equals("p")) System.out.println(split[1]);
-                    else if(split[0].equals("a")) {
-                        StringBuilder now = new StringBuilder();
-                        now.append(action.split(":LTB")[1].split("LTE")[0]);
-                        for(String c:split[2].split("")) {
-                            now.append(c);
-                            request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(now.toString(), new TdApi.TextEntity[0]), true, true);
+                    switch (split[0]) {
+                        case "e":
+                            request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(split[1], new TdApi.TextEntity[0]), true, true);
                             client.send(request, UpdateHandler::requestFailHandler);
+                            break;
+                        case "d":
                             try {
                                 Thread.sleep(Integer.parseInt(split[1]));
-                            } catch (InterruptedException ignored) {}
-                        }
-                    } else if(split[0].equals("s")) {
-                        String now = (action.split(":LTB")[1].split("LTE")[0]);
-                        for(int cur = 1; cur <= Integer.parseInt(split[2]); cur++) {
-                            try {
-                                request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(now.substring(0, now.length() - cur), new TdApi.TextEntity[0]), true, true);
+                            } catch (InterruptedException ignored) {
+                            }
+                            break;
+                        case "p":
+                            System.out.println(split[1]);
+                            break;
+                        case "a": {
+                            StringBuilder now = new StringBuilder();
+                            now.append(action.split(":LTB")[1].split("LTE")[0]);
+                            for (String c : split[2].split("")) {
+                                now.append(c);
+                                request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(now.toString(), new TdApi.TextEntity[0]), true, true);
                                 client.send(request, UpdateHandler::requestFailHandler);
                                 try {
                                     Thread.sleep(Integer.parseInt(split[1]));
                                 } catch (InterruptedException ignored) {
                                 }
-                            } catch (StringIndexOutOfBoundsException ignored) {}
+                            }
+                            break;
+                        }
+                        case "s": {
+                            String now = (action.split(":LTB")[1].split("LTE")[0]);
+                            for (int cur = 1; cur <= Integer.parseInt(split[2]); cur++) {
+                                try {
+                                    request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(now.substring(0, now.length() - cur), new TdApi.TextEntity[0]), true, true);
+                                    client.send(request, UpdateHandler::requestFailHandler);
+                                    try {
+                                        //noinspection BusyWait
+                                        Thread.sleep(Integer.parseInt(split[1]));
+                                    } catch (InterruptedException ignored) {
+                                    }
+                                } catch (StringIndexOutOfBoundsException ignored) {
+                                }
+                            }
+                            break;
                         }
                     }
                 }
@@ -424,6 +445,7 @@ public class UpdateHandler {
         }
     }
 
+    @SuppressWarnings("SpellCheckingInspection")
     public static void sendHelp(TdApi.UpdateNewMessage update) {
         TdApi.EditMessageText request = new TdApi.EditMessageText();
         request.chatId = update.message.chatId;
@@ -460,7 +482,8 @@ public class UpdateHandler {
                     long chatId = update.message.chatId;
                     if (text.toLowerCase(Locale.ROOT).equals("!ignore")) {
                         ignore(chatId, update);
-                    } else if (text.toLowerCase(Locale.ROOT).equals("!unignore")) {
+                    } else //noinspection SpellCheckingInspection
+                        if (text.toLowerCase(Locale.ROOT).equals("!unignore")) {
                         unignore(chatId, update);
                     } else if (text.toLowerCase().contains("!reverse")) {
                         reverse(text, update);
@@ -480,7 +503,7 @@ public class UpdateHandler {
                     }
                 }
             } else {
-                long sender = 0;
+                long sender;
                 if(update.message.canBeDeletedOnlyForSelf || update.message.canBeDeletedForAllUsers) {
                     if (update.message.senderId instanceof TdApi.MessageSenderUser)
                         sender = ((TdApi.MessageSenderUser) update.message.senderId).userId;

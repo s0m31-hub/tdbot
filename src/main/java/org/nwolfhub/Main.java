@@ -2,14 +2,13 @@ package org.nwolfhub;
 
 import it.tdlight.client.*;
 import it.tdlight.common.Init;
-import it.tdlight.common.TelegramClient;
 import it.tdlight.common.utils.CantLoadLibrary;
 import it.tdlight.jni.TdApi;
 
 import java.io.*;
 import java.nio.file.Path;
-import java.util.Scanner;
 
+@SuppressWarnings("ResultOfMethodCallIgnored")
 public class Main {
     public static SimpleTelegramClient client;
     public static void main(String[] args) throws IOException {
@@ -27,6 +26,7 @@ public class Main {
         }
         FileInputStream in = new FileInputStream(tokenFile);
         String raw = new String(in.readAllBytes()).replace("\n", "");
+        in.close();
         int appId =  Integer.parseInt(raw.split(":")[0]);
         String apiHash = raw.split(":")[1];
         APIToken token = new APIToken(appId, apiHash);
@@ -34,20 +34,20 @@ public class Main {
         Path session = Path.of("session");
         settings.setDatabaseDirectoryPath(session);
         settings.setDownloadedFilesDirectoryPath(session);
+        String v = Main.class.getPackage().getImplementationVersion();
+        System.out.println("Using version " + v);
         if(args.length>0 && args[0].equals("testMode")) {
             System.out.println("Working under test name");
             settings.setDeviceModel("Nwolfhub test branch userbot client");
         } else {
-            settings.setDeviceModel("Nwolfhub userbot client");
+            settings.setDeviceModel("Nwolfhub userbot client v" + v);
         }
         client = new SimpleTelegramClient(settings);
         client.start(AuthenticationData.consoleLogin());
         File documentsDir = new File("session/documents");
         if(!documentsDir.isDirectory()) documentsDir.mkdir();
         UpdateHandler.initialize(client);
-        client.addUpdateHandler(TdApi.UpdateNewMessage.class, updateNewMessage -> {
-            new Thread(() -> UpdateHandler.processUpdate(updateNewMessage)).start();
-        });
+        client.addUpdateHandler(TdApi.UpdateNewMessage.class, updateNewMessage -> new Thread(() -> UpdateHandler.processUpdate(updateNewMessage)).start());
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             File blackFile = new File("blackFile");
             if(!blackFile.exists()) {
@@ -68,6 +68,7 @@ public class Main {
                 System.out.println("Client closed");
                 File documentsFolder = new File("session/documents");
                 String[]entries = documentsFolder.list();
+                assert entries != null;
                 for(String s:entries){
                     File currentFile = new File(documentsFolder.getPath(),s);
                     currentFile.delete();

@@ -2,7 +2,7 @@
 
 ## Downloading
 
-Just go to [releases](git@github.com:s0m31-hub/tdbot.git) page on github and download latest jarfile!
+Just go to [releases](https://github.com/s0m31-hub/tdbot/releases) page on GitHub and download latest jarfile!
 
 ## Starting
 
@@ -24,7 +24,7 @@ When you finish, just type !help in any chat
 
 * All commands should end with semicolon (;)
 
-* Every commands consists from action (before :) and params (after :)
+* Every command consists from action (before :) and params (after :)
 
 ### Action list
 

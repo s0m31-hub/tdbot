@@ -1,47 +1,49 @@
 package org.nwolfhub;
 
 import java.io.*;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+@SuppressWarnings("ResultOfMethodCallIgnored")
 public class MessageAnimationHandler {
 
-    private static List<String> actions = Arrays.asList("editTo", "delay", "print", "append", "subtract");
+    private static final List<String> actions = Arrays.asList("editTo", "delay", "print", "append", "subtract");
     public static boolean verifyAction(String action) {
         String[] split = action.split(":");
         if (actions.contains(split[0])) {
-            if (split[0].equals("editTo")) {
-                return split.length >= 2;
-            } else if (split[0].equals("print")) {
-                return split.length >= 2;
-            } else if (split[0].equals("append")) {
-                if (split.length >= 3) {
+            switch (split[0]) {
+                case "editTo":
+                case "print":
+                    return split.length >= 2;
+                case "append":
+                    if (split.length >= 3) {
+                        try {
+                            Integer.parseInt(split[1]);
+                        } catch (NumberFormatException e) {
+                            return false;
+                        }
+                        return true;
+                    }
+                    break;
+                case "subtract":
+                    if (split.length == 3) {
+                        try {
+                            Integer.parseInt(split[1]);
+                            Integer.parseInt(split[2]);
+                        } catch (NumberFormatException e) {
+                            return false;
+                        }
+                        return true;
+                    }
+                    break;
+                case "delay":
                     try {
-                        Integer.parseInt(split[1]);
-                    } catch (NumberFormatException e) {
+                        Integer.valueOf(split[1]);
+                        return true;
+                    } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
                         return false;
                     }
-                    return true;
-                }
-            } else if (split[0].equals("subtract")) {
-                if (split.length == 3) {
-                    try {
-                        Integer.parseInt(split[1]);
-                        Integer.parseInt(split[2]);
-                    } catch (NumberFormatException e) {
-                        return false;
-                    }
-                    return true;
-                }
-            } else if (split[0].equals("delay")) {
-                try {
-                    Integer time = Integer.valueOf(split[1]);
-                    return true;
-                } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
-                    return false;
-                }
             }
         }
         return false;
@@ -57,32 +59,11 @@ public class MessageAnimationHandler {
         }
         return lastIndex;
     }
-    private static int findDeeperPreviousText(List<String> actions, int stopIndex) {
-        int lastIndex = -1;
-        for(int now = 0; now<stopIndex; now++) {
-            String action = actions.get(now);
-            String[] split = action.split(":");
-            if(split[0].equals("e")) {
-                lastIndex = now;
-            }
-        }
-        return lastIndex;
-    }
-    private static String getTextFromIndex(List<String> actions, int index) {
-        String action = actions.get(index);
-        String[] split = action.split(":");
-        if(split[0].equals("e")) {
-            return split[1];
-        } else if(split[0].equals("a") || split[1].equals("s")) {
-            return split[2];
-        }
-        return null;
-    }
 
     private static String buildPathToCt(List<String> actions) {
         StringBuilder builder = new StringBuilder();
         for(String action:actions) {
-            String split[] = action.split(":");
+            String[] split = action.split(":");
             if(split[0].equals("ct")) {
                 builder = new StringBuilder();
                 builder.append(split[1]);
@@ -118,26 +99,28 @@ public class MessageAnimationHandler {
                     boolean res = verifyAction(action);
                     if(res) {
                         String[] split = action.split(":");
-                        if (split[0].equals("editTo")) {
-                            actions.add("e:" + split[1]);
-                            actions.add("ct:" + split[1]);
-                        } else if(split[0].equals("delay")) {
-                            actions.add("d:" + split[1]);
-                        } else if(split[0].equals("print")) {
-                            actions.add("p:" + split[1]);
-                        } else if(split[0].equals("append")) {
-                            int last = findPreviousText(actions, now);
-                            if(last>=0) {
-                                actions.add("a:" + split[1] + ":" + split[2] + ":LTB" + buildPathToCt(actions) + "LTE");
-                                actions.add("cta:" + split[2]);
-                            } else {
-                                actions.add("a:" + split[1] + ":" + split[2] + ":LTB LTE");
+                        switch (split[0]) {
+                            case "editTo" -> {
+                                actions.add("e:" + split[1]);
+                                actions.add("ct:" + split[1]);
                             }
-                        } else if(split[0].equals("subtract")) {
-                            int last = findPreviousText(actions, now);
-                            if(last>=0) {
-                                actions.add("s:" + split[1] + ":" + split[2] + ":LTB" + buildPathToCt(actions) + "LTE");
-                                actions.add("cts:" + split[2]);
+                            case "delay" -> actions.add("d:" + split[1]);
+                            case "print" -> actions.add("p:" + split[1]);
+                            case "append" -> {
+                                int last = findPreviousText(actions, now);
+                                if (last >= 0) {
+                                    actions.add("a:" + split[1] + ":" + split[2] + ":LTB" + buildPathToCt(actions) + "LTE");
+                                    actions.add("cta:" + split[2]);
+                                } else {
+                                    actions.add("a:" + split[1] + ":" + split[2] + ":LTB LTE");
+                                }
+                            }
+                            case "subtract" -> {
+                                int last = findPreviousText(actions, now);
+                                if (last >= 0) {
+                                    actions.add("s:" + split[1] + ":" + split[2] + ":LTB" + buildPathToCt(actions) + "LTE");
+                                    actions.add("cts:" + split[2]);
+                                }
                             }
                         }
                     } else {

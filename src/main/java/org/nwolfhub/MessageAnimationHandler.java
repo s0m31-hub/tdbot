@@ -79,6 +79,20 @@ public class MessageAnimationHandler {
         return null;
     }
 
+    private static String buildPathToCt(List<String> actions) {
+        StringBuilder builder = new StringBuilder();
+        for(String action:actions) {
+            String split[] = action.split(":");
+            if(split[0].equals("ct")) {
+                builder = new StringBuilder();
+                builder.append(split[1]);
+            } else if(split[0].equals("cta")) {
+                builder.append(split[1]);
+            }
+        }
+        return builder.toString();
+    }
+
     public static MessageAnimation importAnimation(String name) throws IOException {
         File animationFileRaw = new File(name + ".numar");
         File animationFile = new File(name + ".numap");
@@ -106,6 +120,7 @@ public class MessageAnimationHandler {
                         String[] split = action.split(":");
                         if (split[0].equals("editTo")) {
                             actions.add("e:" + split[1]);
+                            actions.add("ct:" + split[1]);
                         } else if(split[0].equals("delay")) {
                             actions.add("d:" + split[1]);
                         } else if(split[0].equals("print")) {
@@ -113,14 +128,16 @@ public class MessageAnimationHandler {
                         } else if(split[0].equals("append")) {
                             int last = findPreviousText(actions, now);
                             if(last>=0) {
-                                actions.add("a:" + split[1] + ":" + split[2] + ":LTB" + getTextFromIndex(actions, last) + "LTE");
+                                actions.add("a:" + split[1] + ":" + split[2] + ":LTB" + buildPathToCt(actions) + "LTE");
+                                actions.add("cta:" + split[2]);
                             } else {
                                 actions.add("a:" + split[1] + ":" + split[2] + ":LTB LTE");
                             }
                         } else if(split[0].equals("subtract")) {
                             int last = findPreviousText(actions, now);
                             if(last>=0) {
-                                actions.add("s:" + split[1] + ":" + split[2] + ":LTB" + getTextFromIndex(actions, findDeeperPreviousText(actions, now)) + getTextFromIndex(actions, last) + "LTE");
+                                actions.add("s:" + split[1] + ":" + split[2] + ":LTB" + buildPathToCt(actions) + "LTE");
+                                actions.add("cts:" + split[2]);
                             }
                         }
                     } else {

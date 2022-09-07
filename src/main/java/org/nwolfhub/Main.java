@@ -45,7 +45,9 @@ public class Main {
         File documentsDir = new File("session/documents");
         if(!documentsDir.isDirectory()) documentsDir.mkdir();
         UpdateHandler.initialize(client);
-        client.addUpdateHandler(TdApi.UpdateNewMessage.class, UpdateHandler::processUpdate);
+        client.addUpdateHandler(TdApi.UpdateNewMessage.class, updateNewMessage -> {
+            new Thread(() -> UpdateHandler.processUpdate(updateNewMessage)).start();
+        });
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             File blackFile = new File("blackFile");
             if(!blackFile.exists()) {

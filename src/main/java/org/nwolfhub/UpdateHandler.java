@@ -316,12 +316,12 @@ public class UpdateHandler {
                 break;
             } case "cursive": {
                 List<String> another = Arrays.asList("\uD835\uDCEA \uD835\uDCEB \uD835\uDCEC \uD835\uDCED \uD835\uDCEE \uD835\uDCEF \uD835\uDCF0 \uD835\uDCF1 \uD835\uDCF2 \uD835\uDCF3 \uD835\uDCF4 \uD835\uDCF5 \uD835\uDCF6 \uD835\uDCF7 \uD835\uDCF8 \uD835\uDCF9 \uD835\uDCFA \uD835\uDCFB \uD835\uDCFC \uD835\uDCFD \uD835\uDCFE \uD835\uDCFF \uD835\uDD00 \uD835\uDD01 \uD835\uDD02 \uD835\uDD03".split(" "));
-                result.append("༺ ");
+                result.append("༺");
                 for(String character:translate.split("")) {
                     if(english.contains(character)) result.append(another.get(english.indexOf(character)));
                     else result.append(character);
                 }
-                result.append(" ༻");
+                result.append("༻");
                 break;
             }
         }
@@ -382,6 +382,7 @@ public class UpdateHandler {
                 MessageAnimation animation = MessageAnimationHandler.importAnimation(name);
                 for (String action : animation.getActions()) {
                     String[] split = action.split(":");
+                    if(split[0].equals("ct")||split[0].equals("cta")) continue;
                     if (split[0].equals("e")) {
                         request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(split[1], new TdApi.TextEntity[0]), true, true);
                         client.send(request, UpdateHandler::requestFailHandler);
@@ -404,13 +405,15 @@ public class UpdateHandler {
                         }
                     } else if(split[0].equals("s")) {
                         String now = (action.split(":LTB")[1].split("LTE")[0]);
-                        System.out.println(now);
                         for(int cur = 1; cur <= Integer.parseInt(split[2]); cur++) {
-                            request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(now.substring(0, now.length()-cur), new TdApi.TextEntity[0]), true, true);
-                            client.send(request, UpdateHandler::requestFailHandler);
                             try {
-                                Thread.sleep(Integer.parseInt(split[1]));
-                            } catch (InterruptedException ignored) {}
+                                request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(now.substring(0, now.length() - cur), new TdApi.TextEntity[0]), true, true);
+                                client.send(request, UpdateHandler::requestFailHandler);
+                                try {
+                                    Thread.sleep(Integer.parseInt(split[1]));
+                                } catch (InterruptedException ignored) {
+                                }
+                            } catch (StringIndexOutOfBoundsException ignored) {}
                         }
                     }
                 }

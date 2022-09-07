@@ -31,11 +31,8 @@ public class UpdateHandler {
             blacklist = new HashSet<>();
         } else {
             try(ObjectInputStream in = new ObjectInputStream(new FileInputStream(blackFile))) {
-                Object o = in.readObject();
-                if(o instanceof Set) {
-                    //noinspection unchecked,rawtypes
-                    blacklist = (Set) o;
-                } blacklist = new HashSet<>();
+                // noinspection unchecked
+                blacklist = (Set<Long>) in.readObject();
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }

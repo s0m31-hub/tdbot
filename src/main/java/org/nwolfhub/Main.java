@@ -34,13 +34,11 @@ public class Main {
         Path session = Path.of("session");
         settings.setDatabaseDirectoryPath(session);
         settings.setDownloadedFilesDirectoryPath(session);
-        String v = Main.class.getPackage().getImplementationVersion();
-        System.out.println("Using version " + v);
         if(args.length>0 && args[0].equals("testMode")) {
             System.out.println("Working under test name");
             settings.setDeviceModel("Nwolfhub test branch userbot client");
         } else {
-            settings.setDeviceModel("Nwolfhub userbot client v" + v);
+            settings.setDeviceModel("Nwolfhub userbot client");
         }
         client = new SimpleTelegramClient(settings);
         client.start(AuthenticationData.consoleLogin());

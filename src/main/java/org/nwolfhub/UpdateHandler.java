@@ -112,6 +112,7 @@ public class UpdateHandler {
                 throw new RuntimeException(e);
             }
         }
+        new Thread(UpdateHandler::watchDeletions).start();
         System.out.println("Update handler initialized. Blacklisted users: " + blacklist.size());
     }
 
@@ -525,8 +526,20 @@ public class UpdateHandler {
     }
 
 
-    private static Long getDeletionMs() {
-
+    private static Long getDeletionMs(String time) {
+        String symbol = time.substring(0, 1);
+        try {
+            int timeNum = Integer.parseInt(time.substring(1));
+            return switch (symbol) {
+                case "s" -> System.currentTimeMillis() + timeNum * 1000L;
+                case "m" -> System.currentTimeMillis() + timeNum * 60 * 1000L;
+                case "h" -> System.currentTimeMillis() + timeNum * 60 * 60 * 1000L;
+                case "d" -> System.currentTimeMillis() + timeNum * 3600 * 24 * 1000L;
+                default -> throw new IllegalStateException("Unexpected pattern: " + symbol + "\n\nCurrent patterns:\ns - seconds\nm - minutes\nh - hours\nd - days");
+            };
+        } catch (NumberFormatException ignored) {
+            throw new IllegalStateException("Unexpected value: " + time.substring(1));
+        }
     }
 
     public static void bomb(TdApi.UpdateNewMessage update, String text) {
@@ -534,9 +547,15 @@ public class UpdateHandler {
         if(split.length>=3) {
             if(split[0].equals("!bomb")) {
                 try {
-                    Integer time = Integer.valueOf(split[1]);
-                    deletions.add(new BombedMessage().setDeletionTs())
-                } catch (NumberFormatException ignored) {}
+                    StringBuilder builder = new StringBuilder();
+                    for(int now = 2; now<split.length; now++) {
+                        builder.append(split[now]);
+                    }
+                    deletions.add(new BombedMessage().setDeletionTs(getDeletionMs(split[1])).setOriginalText(builder.toString()).setMessageId(update.message.id).setChatId(update.message.chatId).setNextUpdate(System.currentTimeMillis()));
+                } catch (IllegalStateException e) {
+                    TdApi.EditMessageText request = new TdApi.EditMessageText();
+                    request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Failed to bomb message: " + e, new TdApi.TextEntity[0]), true, true);
+                }
             }
         }
     }
@@ -656,6 +675,9 @@ public class UpdateHandler {
                     deletions.remove(message);
                     deletions.add(message.setNextUpdate());
                 }
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ignored) {}
             }
         }
     }

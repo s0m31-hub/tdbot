@@ -62,6 +62,21 @@ public class Main {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+            File deletionsFile = new File("bombedFile");
+            if(!blackFile.exists()) {
+                try {
+                    deletionsFile.createNewFile();
+                } catch (IOException e) {
+                    throw new RuntimeException("Could not create bombed file: " + e);
+                }
+            }
+            try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(deletionsFile))) {
+                out.writeObject(UpdateHandler.deletions);
+                out.flush();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
             try {
                 client.closeAndWait();
                 System.out.println("Client closed");

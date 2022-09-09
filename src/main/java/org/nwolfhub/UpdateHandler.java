@@ -8,10 +8,7 @@ import it.tdlight.client.SimpleTelegramClient;
 import it.tdlight.jni.TdApi;
 import okhttp3.*;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -20,12 +17,12 @@ import java.util.concurrent.atomic.AtomicLong;
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class UpdateHandler {
     public static Set<Long> blacklist;
+    public static List<BombedMessage> deletions;
     private static SimpleTelegramClient client;
-    private static List<BombedMessage> deletions;
     private static final List<String> patterns = Arrays.asList("bubbles", "squares", "gothic", "cursive");
 
 
-    private static class BombedMessage {
+    private static class BombedMessage implements Serializable {
         public Long chatId;
         public Long messageId;
         public Long deletionTs;
@@ -108,6 +105,18 @@ public class UpdateHandler {
             try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(blackFile))) {
                 // noinspection unchecked
                 blacklist = (Set<Long>) in.readObject();
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        File deletionsFile = new File("bombedFile");
+        if (!deletionsFile.exists()) {
+            deletionsFile.createNewFile();
+            deletions = new ArrayList<>();
+        } else {
+            try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(deletionsFile))) {
+                // noinspection unchecked
+                deletions = (List<BombedMessage>) in.readObject();
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }

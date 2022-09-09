@@ -656,12 +656,12 @@ public class UpdateHandler {
     private static String getDeletionTime(Long msgTs) {
         long sub = (msgTs - System.currentTimeMillis())/1000L;
         if(sub>86400) {
-            return sub/86400 + " days";
+            return sub/86400 + (sub/86400==1?" day" : " days");
         } else if(sub>=3600) {
-            return sub/3600 + " hours";
+            return sub/3600 +(sub/3600==1?" hour" : " hours");
         } else if(sub>=60) {
-            return sub/60 + " minutes";
-        } else return sub + " seconds";
+            return sub/60 + (sub/60==1?" minute" : " minutes");
+        } else return sub + (sub==1?" second" : " seconds");
     }
 
     private static void watchDeletions() {

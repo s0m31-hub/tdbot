@@ -12,6 +12,7 @@ import java.nio.file.Path;
 public class Main {
     public static SimpleTelegramClient client;
     public static void main(String[] args) throws IOException {
+        System.out.println("Initializing tdbot v" + Main.class.getPackage().getImplementationVersion());
         try {
             Init.start();
         } catch (CantLoadLibrary e) {
@@ -38,7 +39,7 @@ public class Main {
             System.out.println("Working under test name");
             settings.setDeviceModel("Nwolfhub test branch userbot client");
         } else {
-            settings.setDeviceModel("Nwolfhub userbot client");
+            settings.setDeviceModel("Nwolfhub userbot client " + Main.class.getPackage().getImplementationVersion());
         }
         client = new SimpleTelegramClient(settings);
         client.start(AuthenticationData.consoleLogin());
@@ -61,6 +62,21 @@ public class Main {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
+            File deletionsFile = new File("bombedFile");
+            if(!blackFile.exists()) {
+                try {
+                    deletionsFile.createNewFile();
+                } catch (IOException e) {
+                    throw new RuntimeException("Could not create bombed file: " + e);
+                }
+            }
+            try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(deletionsFile))) {
+                out.writeObject(UpdateHandler.deletions);
+                out.flush();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
             try {
                 client.closeAndWait();
                 System.out.println("Client closed");

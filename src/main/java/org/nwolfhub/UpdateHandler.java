@@ -553,21 +553,65 @@ public class UpdateHandler {
 
     public static void bomb(TdApi.UpdateNewMessage update, String text) {
         String[] split = text.split(" ");
-        if(split.length>=3) {
-            if(split[0].equals("!bomb")) {
+        if (split[0].equals("!bomb")) {
+            if (split.length >= 3) {
                 try {
                     StringBuilder builder = new StringBuilder();
-                    for(int now = 2; now<split.length; now++) {
+                    for (int now = 2; now < split.length; now++) {
+                        if (now > 2) builder.append(" ");
                         builder.append(split[now]);
                     }
-                    try {
-                        synchronized (deletions) {
-                            deletions.add(new BombedMessage().setDeletionTs(getDeletionMs(split[1])).setOriginalText(builder.toString()).setMessageId(update.message.id).setChatId(update.message.chatId).setNextUpdate(System.currentTimeMillis()));
+                    boolean finished = false;
+                    while (!finished) {
+                        try {
+                            synchronized (deletions) {
+                                deletions.add(new BombedMessage().setDeletionTs(getDeletionMs(split[1])).setOriginalText(builder.toString()).setMessageId(update.message.id).setChatId(update.message.chatId).setNextUpdate(System.currentTimeMillis()));
+                                finished = true;
+                            }
+                        } catch (ConcurrentModificationException ignored) {
                         }
-                    } catch (ConcurrentModificationException ignored) {}
+                    }
                 } catch (IllegalStateException e) {
                     TdApi.EditMessageText request = new TdApi.EditMessageText();
                     request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Failed to bomb message: " + e, new TdApi.TextEntity[0]), true, true);
+                    request.messageId = update.message.id;
+                    request.chatId = update.message.chatId;
+                    client.send(request, UpdateHandler::requestFailHandler);
+                }
+            }
+            else if (split.length == 2) {
+                try {
+                    TdApi.EditMessageText request = new TdApi.EditMessageText();
+                    if(update.message.replyToMessageId == 0) {
+                        request.chatId = update.message.chatId;
+                        request.messageId = update.message.id;
+                        request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Please reply to a message", new TdApi.TextEntity[0]), true, true);
+                        client.send(request, UpdateHandler::requestFailHandler);
+                    } else {
+                        TdApi.GetMessage getMessage = new TdApi.GetMessage();
+                        getMessage.chatId = update.message.chatId;
+                        getMessage.messageId = update.message.replyToMessageId;
+                        client.send(getMessage, result -> {
+                            boolean finished = false;
+                            while (!finished) {
+                                try {
+                                    synchronized (deletions) {
+                                        deletions.add(new BombedMessage().setDeletionTs(getDeletionMs(split[1])).setOriginalText(((TdApi.MessageText) result.get().content).text.text).setMessageId(result.get().id).setChatId(result.get().chatId).setNextUpdate(System.currentTimeMillis()));
+                                        finished = true;
+                                        TdApi.DeleteMessages deleteMessages = new TdApi.DeleteMessages(update.message.chatId, new long[]{update.message.id}, true);
+                                        client.send(deleteMessages, UpdateHandler::requestFailHandler);
+                                    }
+                                } catch (ConcurrentModificationException ignored) {
+                                }
+                            }
+                        });
+                    }
+                }  catch (IllegalStateException e) {
+                    TdApi.EditMessageText request = new TdApi.EditMessageText();
+                    request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Failed to bomb message: " + e, new TdApi.TextEntity[0]), true, true);
+                    request.messageId = update.message.id;
+                    request.chatId = update.message.chatId;
+                    client.send(request, UpdateHandler::requestFailHandler);
                 }
             }
         }
@@ -658,12 +702,12 @@ public class UpdateHandler {
     private static String getDeletionTime(Long msgTs) {
         long sub = (msgTs - System.currentTimeMillis())/1000L;
         if(sub>86400) {
-            return sub/86400 + (sub/86400==1?" day" : " days");
+            return (sub/86400 + 1) + (" days");
         } else if(sub>=3600) {
-            return sub/3600 +(sub/3600==1?" hour" : " hours");
+            return (sub/3600 + 1) +(" hours");
         } else if(sub>=60) {
-            return sub/60 + (sub/60==1?" minute" : " minutes");
-        } else return sub + (sub==1?" second" : " seconds");
+            return (sub/60 + 1) + (" minutes");
+        } else return (sub + 1) + (sub==0?" second" : " seconds");
     }
 
     private static void watchDeletions() {
@@ -679,7 +723,10 @@ public class UpdateHandler {
                             client.send(deleteMessages, result -> {
                                 if (!result.isError()) {
                                     deletions.remove(message);
-                                    System.out.println("Failed to delete message: " + result.getError());
+                                } else {
+                                    if(result.getError().message.equals("Message not found")) {
+                                        deletions.remove(message);
+                                    } else System.out.println("Failed to delete message: " + result.getError());
                                 }
                             });
                         } else if (message.nextUpdate <= System.currentTimeMillis()) {
@@ -687,7 +734,14 @@ public class UpdateHandler {
                             request.messageId = message.getMessageId();
                             request.chatId = message.getChatId();
                             request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(message.getOriginalText() + "\n\nMessage will be deleted in " + getDeletionTime(message.getDeletionTs()), new TdApi.TextEntity[0]), true, true);
-                            client.send(request, UpdateHandler::requestFailHandler);
+                            client.send(request, result -> {
+                                if(result.isError()) {
+                                    if(result.getError().message.equalsIgnoreCase("Message not found")) {
+                                        deletions.remove(message);
+                                        System.out.println("Removed message since it does not exist anymore");
+                                    }
+                                }
+                            });
                             deletions.remove(message);
                             deletions.add(message.setNextUpdate());
                         }

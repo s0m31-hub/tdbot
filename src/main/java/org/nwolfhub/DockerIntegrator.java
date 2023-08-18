@@ -17,6 +17,7 @@ public class DockerIntegrator {
     public static final String bash = "bash:5.2";
     public static final String python = "python:3.9.17";
     public static final String java = "amazoncorretto:17";
+    public static final String fedora = "fedora:38";
     public static void initDocker() {
         try {
             Process initProcess = Runtime.getRuntime().exec("docker info");
@@ -27,6 +28,8 @@ public class DockerIntegrator {
                 Runtime.getRuntime().exec("docker pull " + python).waitFor();
                 System.out.println("Pulling java...");
                 Runtime.getRuntime().exec("docker pull " + java).waitFor();
+                System.out.println("Pulling fedora...");
+                Runtime.getRuntime().exec("docker pull " + fedora).waitFor();
                 System.out.println("Finished!");
                 enabled = true;
             }
@@ -73,7 +76,7 @@ public class DockerIntegrator {
         }
     }
 
-    public static String run(String image) throws IOException {
+    public static String run(String image, Integer wait) throws IOException {
         String name = Utils.generateString(30);
         File outputFile = new File("docker" + name + ".out");
         ProcessBuilder builder = new ProcessBuilder("docker", "container", "run", "--name", name, image);
@@ -81,7 +84,7 @@ public class DockerIntegrator {
         builder.redirectError(outputFile);
         Process docker = builder.start();
         try {
-            boolean finished = docker.waitFor(10, TimeUnit.SECONDS);
+            boolean finished = docker.waitFor(wait, TimeUnit.SECONDS);
             if(!finished) {
                 docker.destroyForcibly();
             }

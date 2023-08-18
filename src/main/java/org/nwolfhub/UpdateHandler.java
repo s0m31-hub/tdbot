@@ -622,7 +622,7 @@ public class UpdateHandler {
 
     public static void execute(TdApi.UpdateNewMessage update, String text, boolean file) throws InterruptedException {
         String[] split = text.split(" ");
-        if(!split[0].equals("!execute")) return;
+        if(!split[0].equals("!execute") && !split[0].equals("!exec")) return;
         String lang = split[1];
         String ext;
         String advLang;
@@ -651,7 +651,7 @@ public class UpdateHandler {
                 client.send(request, UpdateHandler::requestFailHandler);
                 return;
             }
-            switch (lang) {
+            switch (lang.toLowerCase()) {
                 case "java" -> {
                     ext = ".java";
                     advLang = DockerIntegrator.java;
@@ -667,6 +667,12 @@ public class UpdateHandler {
                     extra = "RUN chmod +x {filename}{ext}";
                     compilecmd = "./{filename}{ext}";
                     advLang = DockerIntegrator.bash;
+                }
+                case "fedora" -> {
+                    ext = ".sh";
+                    extra = "RUN chmod +x {filename}{ext}";
+                    compilecmd = "bash ./{filename}{ext}";
+                    advLang = DockerIntegrator.fedora;
                 }
                 default -> {
                     if (!file) {
@@ -717,7 +723,9 @@ public class UpdateHandler {
                     request2.caption = new TdApi.FormattedText("Executing script. Image: " + imageName, new TdApi.TextEntity[0]);
                     client.send(request2, UpdateHandler::requestFailHandler);
                 }
-                String result = DockerIntegrator.run(imageName);
+                String result = "";
+                if(lang.equalsIgnoreCase("fedora")) result = DockerIntegrator.run(imageName, 300);
+                else result = DockerIntegrator.run(imageName, 10);
                 if (result.length() > 4000) result = result.substring(0, 4000) + "...";
                 if (!file) {
                     request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Result:\n" + result + "\n\nImage used: " + imageName, new TdApi.TextEntity[]{new TdApi.TextEntity(8, result.length(), new TdApi.TextEntityTypeCode())}), true, true);
@@ -768,7 +776,7 @@ public class UpdateHandler {
                                 
                 !bomb *time* *message* - delete a message after some time
                 
-                !execute *language* *command* - executes a program
+                !execute, !exec *language* *command* - executes a program
                 """;
         request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText(help, new TdApi.TextEntity[0]), true, true);
         client.send(request, UpdateHandler::requestFailHandler);
@@ -793,7 +801,7 @@ public class UpdateHandler {
                     if (text.contains("!upgrade")) upgradeText(text, update);
                     if (text.contains("!animate")) animateMessage(text, update);
                     if (text.contains("!bomb")) bomb(update, text);
-                    if(text.contains("!execute")) execute(update, text, false);
+                    if(text.contains("!execute") || text.contains("!exec")) execute(update, text, false);
                     if (text.equals("!help")) sendHelp(update);
                 } else if (update.message.content instanceof TdApi.MessageDocument) {
                     String text = ((TdApi.MessageDocument) update.message.content).caption.text;
@@ -803,7 +811,7 @@ public class UpdateHandler {
                             importFile(update, split.length > 1 ? split[1] : null);
                         }
                     }
-                    if(text.contains("!execute")) execute(update, text, true);
+                    if(text.contains("!execute") || text.contains("!exec")) execute(update, text, true);
                 }
             } else {
                 long sender;

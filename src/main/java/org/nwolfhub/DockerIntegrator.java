@@ -78,6 +78,7 @@ public class DockerIntegrator {
         File outputFile = new File("docker" + name + ".out");
         ProcessBuilder builder = new ProcessBuilder("docker", "container", "run", "--name", name, image);
         builder.redirectOutput(outputFile);
+        builder.redirectError(outputFile);
         Process docker = builder.start();
         try {
             boolean finished = docker.waitFor(10, TimeUnit.SECONDS);

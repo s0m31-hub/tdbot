@@ -7,7 +7,7 @@
 
     <groupId>org.nwolfhub</groupId>
     <artifactId>tdbot</artifactId>
-    <version>1.2.2-docker</version>
+    <version>1.2.3-docker</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>

@@ -636,93 +636,104 @@ public class UpdateHandler {
         TdApi.EditMessageCaption request2 = new TdApi.EditMessageCaption();
         request2.chatId = update.message.chatId;
         request2.messageId = update.message.id;
-        if(!DockerIntegrator.enabled) {
-            request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Docker is not enabled", new TdApi.TextEntity[0]), true, true);
-            client.send(request, UpdateHandler::requestFailHandler);
-            return;
-        }
-        switch (lang) {
-            case "java" -> {
-                ext = ".java";
-                advLang = DockerIntegrator.java;
-                compilecmd = "java {filename}{ext}";
+        if(update.message.replyToMessageId != 0 && split.length==2 && !file) {
+                client.send(new TdApi.GetMessage(update.message.chatId, update.message.replyToMessageId), result -> {
+                    String innerText = ((TdApi.MessageText) result.get().content).text.text;
+                    try {
+                        execute(update, "!execute " + lang + " " + innerText, false);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+        } else {
+            if (!DockerIntegrator.enabled) {
+                request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Docker is not enabled", new TdApi.TextEntity[0]), true, true);
+                client.send(request, UpdateHandler::requestFailHandler);
+                return;
             }
-            case "python" -> {
-                ext = ".py";
-                advLang = DockerIntegrator.python;
-                compilecmd = "python {filename}{ext}";
+            switch (lang) {
+                case "java" -> {
+                    ext = ".java";
+                    advLang = DockerIntegrator.java;
+                    compilecmd = "java {filename}{ext}";
+                }
+                case "python" -> {
+                    ext = ".py";
+                    advLang = DockerIntegrator.python;
+                    compilecmd = "python {filename}{ext}";
+                }
+                case "bash" -> {
+                    ext = ".sh";
+                    extra = "RUN chmod +x {filename}{ext}";
+                    compilecmd = "./{filename}{ext}";
+                    advLang = DockerIntegrator.bash;
+                }
+                default -> {
+                    if (!file) {
+                        request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Could not find language " + lang + ". Consider trying java, bash, python and go", new TdApi.TextEntity[0]), true, true);
+                        client.send(request, UpdateHandler::requestFailHandler);
+                    } else {
+                        request2.caption = new TdApi.FormattedText("Could not find language " + lang + ". Consider trying java, bash and python", new TdApi.TextEntity[0]);
+                        client.send(request2, UpdateHandler::requestFailHandler);
+                    }
+                    return;
+                }
             }
-            case "bash" -> {
-                ext = ".sh";
-                extra = "RUN chmod +x {filename}{ext}";
-                compilecmd = "./{filename}{ext}";
-                advLang = DockerIntegrator.bash;
+            if (!file) {
+                name = Utils.generateString(10);
+                timedCommand = new File(name + ext);
+                try {
+                    timedCommand.createNewFile();
+                    try (FileOutputStream outputStream = new FileOutputStream(timedCommand)) {
+                        outputStream.write(String.join(" ", Arrays.stream(split).toList().subList(2, split.length)).getBytes(StandardCharsets.UTF_8));
+                    }
+                } catch (IOException e) {
+                    request2.caption = new TdApi.FormattedText("Error occurred while working with file: " + e, new TdApi.TextEntity[0]);
+                    client.send(request2, UpdateHandler::requestFailHandler);
+                    return;
+                }
+            } else {
+                name = Utils.generateString(10);
+                importFile(update, name + ext);
+                timedCommand = new File(name + ext);
+                while (!timedCommand.exists()) {
+                    Thread.sleep(100);
+                }
             }
-            default -> {
-                if(!file) {
-                    request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Could not find language " + lang + ". Consider trying java, bash, python and go", new TdApi.TextEntity[0]), true, true);
+            try {
+                extra = extra.replace("{filename}", name).replace("{ext}", ext);
+                if (!file) {
+                    request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Creating docker image", new TdApi.TextEntity[0]), true, true);
                     client.send(request, UpdateHandler::requestFailHandler);
                 } else {
-                    request2.caption = new TdApi.FormattedText("Could not find language " + lang + ". Consider trying java, bash and python", new TdApi.TextEntity[0]);
+                    request2.caption = new TdApi.FormattedText("Creating docker image", new TdApi.TextEntity[0]);
                     client.send(request2, UpdateHandler::requestFailHandler);
                 }
-                return;
-            }
-        }
-        if(!file) {
-            name = Utils.generateString(10);
-            timedCommand = new File(name + ext);
-            try {
-                timedCommand.createNewFile();
-                try (FileOutputStream outputStream = new FileOutputStream(timedCommand)) {
-                    outputStream.write(String.join(" ", Arrays.stream(split).toList().subList(2, split.length)).getBytes(StandardCharsets.UTF_8));
+                String imageName = DockerIntegrator.createImage(timedCommand, advLang, extra, compilecmd.replace("{filename}", name).replace("{ext}", ext).split(" "));
+                if (!file) {
+                    request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Executing script. Image: " + imageName, new TdApi.TextEntity[0]), true, true);
+                    client.send(request, UpdateHandler::requestFailHandler);
+                } else {
+                    request2.caption = new TdApi.FormattedText("Executing script. Image: " + imageName, new TdApi.TextEntity[0]);
+                    client.send(request2, UpdateHandler::requestFailHandler);
+                }
+                String result = DockerIntegrator.run(imageName);
+                if (result.length() > 4000) result = result.substring(0, 4000) + "...";
+                if (!file) {
+                    request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Result:\n" + result + "\n\nImage used: " + imageName, new TdApi.TextEntity[]{new TdApi.TextEntity(8, result.length(), new TdApi.TextEntityTypeCode())}), true, true);
+                    client.send(request, UpdateHandler::requestFailHandler);
+                } else {
+                    request2.caption = new TdApi.FormattedText("Result:\n" + result + "\n\nImage used: " + imageName, new TdApi.TextEntity[]{new TdApi.TextEntity(8, result.length(), new TdApi.TextEntityTypeCode())});
+                    client.send(request2, UpdateHandler::requestFailHandler);
                 }
             } catch (IOException e) {
-                request2.caption = new TdApi.FormattedText("Error occurred while working with file: " + e, new TdApi.TextEntity[0]);
-                client.send(request2, UpdateHandler::requestFailHandler);
-                return;
-            }
-        } else {
-            name = Utils.generateString(10);
-            importFile(update, name + ext);
-            timedCommand = new File(name + ext);
-            while (!timedCommand.exists()) {
-                Thread.sleep(100);
-            }
-        }
-        try {
-            extra = extra.replace("{filename}", name).replace("{ext}", ext);
-            if(!file) {
-                request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Creating docker image", new TdApi.TextEntity[0]), true, true);
-                client.send(request, UpdateHandler::requestFailHandler);
-            } else {
-                request2.caption = new TdApi.FormattedText("Creating docker image", new TdApi.TextEntity[0]);
-                client.send(request2, UpdateHandler::requestFailHandler);
-            }
-            String imageName = DockerIntegrator.createImage(timedCommand, advLang, extra, compilecmd.replace("{filename}", name).replace("{ext}", ext).split(" "));
-            if(!file) {
-                request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Executing script. Image: " + imageName, new TdApi.TextEntity[0]), true, true);
-                client.send(request, UpdateHandler::requestFailHandler);
-            } else {
-                request2.caption = new TdApi.FormattedText("Executing script. Image: " + imageName, new TdApi.TextEntity[0]);
-                client.send(request2, UpdateHandler::requestFailHandler);
-            }
-            String result = DockerIntegrator.run(imageName);
-            if(result.length()>4000) result = result.substring(0, 4000) + "...";
-            if(!file) {
-                request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Result:\n" + result + "\n\nImage used: " + imageName, new TdApi.TextEntity[]{new TdApi.TextEntity(8, result.length(), new TdApi.TextEntityTypeCode())}), true, true);
-                client.send(request, UpdateHandler::requestFailHandler);
-            } else {
-                request2.caption = new TdApi.FormattedText("Result:\n" + result + "\n\nImage used: " + imageName, new TdApi.TextEntity[]{new TdApi.TextEntity(8, result.length(), new TdApi.TextEntityTypeCode())});
-                client.send(request2, UpdateHandler::requestFailHandler);
-            }
-        } catch (IOException e) {
-            if(!file) {
-                request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Error: " + e, new TdApi.TextEntity[0]), true, true);
-                client.send(request, UpdateHandler::requestFailHandler);
-            } else {
-                request2.caption = new TdApi.FormattedText("Error: " + e, new TdApi.TextEntity[0]);
-                client.send(request2, UpdateHandler::requestFailHandler);
+                if (!file) {
+                    request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Error: " + e, new TdApi.TextEntity[0]), true, true);
+                    client.send(request, UpdateHandler::requestFailHandler);
+                } else {
+                    request2.caption = new TdApi.FormattedText("Error: " + e, new TdApi.TextEntity[0]);
+                    client.send(request2, UpdateHandler::requestFailHandler);
+                }
             }
         }
     }

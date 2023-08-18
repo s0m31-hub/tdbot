@@ -17,7 +17,6 @@ public class DockerIntegrator {
     public static final String bash = "bash:5.2";
     public static final String python = "python:3.9.17";
     public static final String java = "amazoncorretto:17";
-    public static final String go = "golang:1.21.0";
     public static void initDocker() {
         try {
             Process initProcess = Runtime.getRuntime().exec("docker info");
@@ -28,8 +27,6 @@ public class DockerIntegrator {
                 Runtime.getRuntime().exec("docker pull " + python).waitFor();
                 System.out.println("Pulling java...");
                 Runtime.getRuntime().exec("docker pull " + java).waitFor();
-                System.out.println("Pulling golang...");
-                Runtime.getRuntime().exec("docker pull " + go).waitFor();
                 System.out.println("Finished!");
                 enabled = true;
             }
@@ -57,7 +54,7 @@ public class DockerIntegrator {
         if(!logDir.isDirectory()) logDir.mkdir();
         File logFile = new File(logDir, name + ".log");
         logFile.createNewFile();
-        ProcessBuilder builder = new ProcessBuilder("docker", "build" , "-t", name, dockerDir.getAbsolutePath());
+        ProcessBuilder builder = new ProcessBuilder("docker", "build", "-t", name, dockerDir.getAbsolutePath());
         builder.redirectOutput(logFile);
         builder.redirectError(logFile);
         Process buildProcess = builder.start();

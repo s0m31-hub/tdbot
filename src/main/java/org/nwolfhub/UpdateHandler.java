@@ -652,12 +652,6 @@ public class UpdateHandler {
                 advLang = DockerIntegrator.python;
                 compilecmd = "python {filename}{ext}";
             }
-            case "go" -> {
-                ext = ".go";
-                advLang = DockerIntegrator.go;
-                extra = "RUN go build {filename}{ext}\nRUN chmod +x {filename}";
-                compilecmd = "./{filename}";
-            }
             case "bash" -> {
                 ext = ".sh";
                 extra = "RUN chmod +x {filename}{ext}";
@@ -665,8 +659,13 @@ public class UpdateHandler {
                 advLang = DockerIntegrator.bash;
             }
             default -> {
-                request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Could not find language " + lang + ". Consider trying java, bash, python and go", new TdApi.TextEntity[0]), true, true);
-                client.send(request, UpdateHandler::requestFailHandler);
+                if(!file) {
+                    request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Could not find language " + lang + ". Consider trying java, bash, python and go", new TdApi.TextEntity[0]), true, true);
+                    client.send(request, UpdateHandler::requestFailHandler);
+                } else {
+                    request2.caption = new TdApi.FormattedText("Could not find language " + lang + ". Consider trying java, bash and python", new TdApi.TextEntity[0]);
+                    client.send(request2, UpdateHandler::requestFailHandler);
+                }
                 return;
             }
         }

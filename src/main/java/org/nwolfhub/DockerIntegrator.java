@@ -38,14 +38,14 @@ public class DockerIntegrator {
         }
     }
 
-    public static String createImage(File file, String lang, String... cmd) throws IOException {
+    public static String createImage(File file, String lang, String extra, String... cmd) throws IOException {
         File dockerDir = new File("docker" + Utils.generateString(15));
         dockerDir.mkdirs();
         File dockerFile = new File(dockerDir, "Dockerfile");
         dockerFile.createNewFile();
         Files.copy(file.getAbsoluteFile().toPath(), Path.of(dockerDir.getAbsolutePath() + "/" + file.getName()));
         try(FileOutputStream out = new FileOutputStream(dockerFile)) {
-            String content = "FROM " + lang + "\nADD " + file.getName() + " /\nCMD [" + Arrays.stream(cmd).map(e -> {
+            String content = "FROM " + lang + "\n" + "ADD " + file.getName() + " /\n"+ extra + "\n" + "CMD [" + Arrays.stream(cmd).map(e -> {
                 e = "\"" + e + "\"";
                 return e;
             }).collect(Collectors.joining(", ")) + "]";

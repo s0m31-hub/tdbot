@@ -628,6 +628,7 @@ public class UpdateHandler {
         String advLang;
         String compilecmd;
         String name = "";
+        String extra = "";
         File timedCommand = new File("");
         TdApi.EditMessageText request = new TdApi.EditMessageText();
         request.chatId = update.message.chatId;
@@ -654,11 +655,13 @@ public class UpdateHandler {
             case "go" -> {
                 ext = ".go";
                 advLang = DockerIntegrator.go;
-                compilecmd = "go build {filename}{ext} && chmod +x {filename} && ./{filename}";
+                extra = "RUN go build {filename}{ext}\nRUN chmod +x {filename}";
+                compilecmd = "./{filename}";
             }
             case "bash" -> {
                 ext = ".sh";
-                compilecmd = "chmod +x {filename}{ext} && ./{filename}{ext}";
+                extra = "RUN chmod +x {filename}{ext}";
+                compilecmd = "./{filename}{ext}";
                 advLang = DockerIntegrator.bash;
             }
             default -> {
@@ -689,6 +692,7 @@ public class UpdateHandler {
             }
         }
         try {
+            extra = extra.replace("{filename}", name).replace("{ext}", ext);
             if(!file) {
                 request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Creating docker image", new TdApi.TextEntity[0]), true, true);
                 client.send(request, UpdateHandler::requestFailHandler);
@@ -696,7 +700,7 @@ public class UpdateHandler {
                 request2.caption = new TdApi.FormattedText("Creating docker image", new TdApi.TextEntity[0]);
                 client.send(request2, UpdateHandler::requestFailHandler);
             }
-            String imageName = DockerIntegrator.createImage(timedCommand, advLang, compilecmd.replace("{filename}", name).replace("{ext}", ext).split(" "));
+            String imageName = DockerIntegrator.createImage(timedCommand, advLang, extra, compilecmd.replace("{filename}", name).replace("{ext}", ext).split(" "));
             if(!file) {
                 request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Executing script. Image: " + imageName, new TdApi.TextEntity[0]), true, true);
                 client.send(request, UpdateHandler::requestFailHandler);
@@ -705,12 +709,12 @@ public class UpdateHandler {
                 client.send(request2, UpdateHandler::requestFailHandler);
             }
             String result = DockerIntegrator.run(imageName);
-            if(result.length()>4090) result = result.substring(0, 4090) + "...";
+            if(result.length()>4000) result = result.substring(0, 4000) + "...";
             if(!file) {
-                request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Result:\n" + result, new TdApi.TextEntity[]{new TdApi.TextEntity(8, result.length(), new TdApi.TextEntityTypeCode())}), true, true);
+                request.inputMessageContent = new TdApi.InputMessageText(new TdApi.FormattedText("Result:\n" + result + "\n\nImage used: " + imageName, new TdApi.TextEntity[]{new TdApi.TextEntity(8, result.length(), new TdApi.TextEntityTypeCode())}), true, true);
                 client.send(request, UpdateHandler::requestFailHandler);
             } else {
-                request2.caption = new TdApi.FormattedText("Result:\n" + result, new TdApi.TextEntity[]{new TdApi.TextEntity(8, result.length(), new TdApi.TextEntityTypeCode())});
+                request2.caption = new TdApi.FormattedText("Result:\n" + result + "\n\nImage used: " + imageName, new TdApi.TextEntity[]{new TdApi.TextEntity(8, result.length(), new TdApi.TextEntityTypeCode())});
                 client.send(request2, UpdateHandler::requestFailHandler);
             }
         } catch (IOException e) {

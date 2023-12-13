@@ -7,7 +7,7 @@
 
     <groupId>org.nwolfhub</groupId>
     <artifactId>tdbot</artifactId>
-    <version>1.1.11</version>
+    <version>1.2.5</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -62,6 +62,16 @@
             <groupId>com.ibm.icu</groupId>
             <artifactId>icu4j</artifactId>
             <version>71.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.nwolfhub</groupId>
+            <artifactId>utils</artifactId>
+            <version>1.2.2</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.13.0</version>
         </dependency>
     </dependencies>
 

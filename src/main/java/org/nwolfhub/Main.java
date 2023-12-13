@@ -7,12 +7,18 @@ import it.tdlight.jni.TdApi;
 
 import java.io.*;
 import java.nio.file.Path;
+import java.util.Scanner;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class Main {
     public static SimpleTelegramClient client;
     public static void main(String[] args) throws IOException {
         System.out.println("Initializing tdbot v" + Main.class.getPackage().getImplementationVersion());
+        System.out.println("Enable docker? (y/n)");
+        Scanner sc = new Scanner(System.in);
+        if(sc.nextLine().strip().equals("y")) {
+            DockerIntegrator.initDocker();
+        }
         try {
             Init.start();
         } catch (CantLoadLibrary e) {
